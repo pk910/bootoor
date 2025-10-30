@@ -1,0 +1,559 @@
+{{ define "page" }}
+  <div class="container mt-2">
+    <h3 class="py-2">Bootnode Overview</h3>
+
+    <!-- ENR Header Section -->
+    {{ if .LocalENR }}
+    <div class="card mt-3">
+      <div class="card-body">
+        <h5 class="card-title">Bootnode ENR</h5>
+        <p class="text-muted mb-3">Share this Ethereum Node Record (ENR) with peers to allow them to discover and connect to this bootnode.</p>
+        <div class="input-group">
+          <input type="text" class="form-control font-monospace" value="{{ .LocalENR }}" readonly>
+          <button class="btn btn-outline-secondary" type="button" data-clipboard-text="{{ .LocalENR }}" data-bs-toggle="tooltip" title="Copy ENR to clipboard">
+            <i class="fa fa-copy"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    {{ end }}
+
+    <!-- Peer ID Section -->
+    <div class="card mt-3">
+      <div class="card-body">
+        <h5 class="card-title">Peer ID</h5>
+        <div class="input-group">
+          <input type="text" class="form-control font-monospace" value="{{ .PeerID }}" readonly>
+          <button class="btn btn-outline-secondary" type="button" data-clipboard-text="{{ .PeerID }}" data-bs-toggle="tooltip" title="Copy Peer ID to clipboard">
+            <i class="fa fa-copy"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards Grid -->
+    <div class="row mt-3">
+      <!-- Node Status Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Node Status</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Status</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-success" data-stat="status">{{ .Status }}</span></td>
+                </tr>
+                {{ if .NetworkName }}
+                <tr>
+                  <td class="text-muted">Network</td>
+                  <td class="text-end"><strong data-stat="network">{{ .NetworkName }}</strong></td>
+                </tr>
+                {{ end }}
+                <tr>
+                  <td class="text-muted">Uptime</td>
+                  <td class="text-end" data-stat="uptime">{{ formatTimeDiff .StartTime }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Bind Address</td>
+                  <td class="text-end"><code style="font-size: 0.85em;" data-stat="bind-address">{{ .BindAddress }}</code></td>
+                </tr>
+                {{ if .LocalENR }}
+                <tr>
+                  <td class="text-muted">
+                    ENR Seq
+                    <i class="fa fa-info-circle text-muted"
+                       style="font-size: 0.8em;"
+                       role="button"
+                       data-bs-toggle="popover"
+                       data-bs-trigger="hover focus"
+                       data-bs-placement="right"
+                       data-bs-html="true"
+                       data-bs-title="ENR Sequence Number"
+                       data-bs-content="The sequence number of this node's Ethereum Node Record (ENR). This number increments each time the ENR is updated with new information."></i>
+                  </td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-info" data-stat="enr-seq">{{ .LocalENRSeq }}</span></td>
+                </tr>
+                {{ end }}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Routing Table Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Routing Table</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Total Nodes</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-primary fs-6" data-stat="table-size">{{ .TableSize }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">
+                    Buckets Filled
+                    <i class="fa fa-info-circle text-muted"
+                       style="font-size: 0.8em;"
+                       role="button"
+                       data-bs-toggle="popover"
+                       data-bs-trigger="hover focus"
+                       data-bs-placement="right"
+                       data-bs-html="true"
+                       data-bs-title="Routing Table Buckets"
+                       data-bs-content="The routing table has 256 buckets (0-255), each representing a distance range from this node. A bucket is 'filled' when it contains at least one node. More filled buckets means better network coverage and discovery capability."></i>
+                  </td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-info fs-6" data-stat="buckets-filled">{{ .BucketsFilled }} / 256</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discovery Stats Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Discovery</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Lookups Started</td>
+                  <td class="text-end" data-stat="lookups-started">{{ .LookupsStarted }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Lookups Completed</td>
+                  <td class="text-end" data-stat="lookups-completed">{{ .LookupsCompleted }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Lookups Failed</td>
+                  <td class="text-end" data-stat="lookups-failed">{{ .LookupsFailed }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ping Stats Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Ping Statistics</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Pings Sent</td>
+                  <td class="text-end" data-stat="pings-sent">{{ .PingsSent }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Pongs Received</td>
+                  <td class="text-end" data-stat="pongs-received">{{ .PongsReceived }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Success Rate</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-success" data-stat="ping-success-rate">{{ printf "%.1f" .PingSuccessRate }}%</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Stats Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Sessions</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">
+                    Active
+                    <i class="fa fa-info-circle text-muted"
+                       style="font-size: 0.8em;"
+                       role="button"
+                       data-bs-toggle="popover"
+                       data-bs-trigger="hover focus"
+                       data-bs-placement="right"
+                       data-bs-html="true"
+                       data-bs-title="Active Sessions"
+                       data-bs-content="Number of currently active encrypted sessions with peer nodes. Each session has established encryption keys and can send/receive encrypted messages."></i>
+                  </td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-success fs-6" data-stat="sessions-active">{{ .SessionsActive }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Total</td>
+                  <td class="text-end" data-stat="sessions-total">{{ .SessionsTotal }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">
+                    Expired
+                    <i class="fa fa-info-circle text-muted"
+                       style="font-size: 0.8em;"
+                       role="button"
+                       data-bs-toggle="popover"
+                       data-bs-trigger="hover focus"
+                       data-bs-placement="right"
+                       data-bs-html="true"
+                       data-bs-title="Expired Sessions"
+                       data-bs-content="Sessions that have exceeded their lifetime (default 12 hours). These will be cleaned up and require a new handshake for future communication."></i>
+                  </td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-secondary" data-stat="sessions-expired">{{ .SessionsExpired }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Packet Stats Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Packet Statistics</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Packets Received</td>
+                  <td class="text-end" data-stat="packets-received">{{ .PacketsReceived }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Packets Sent</td>
+                  <td class="text-end" data-stat="packets-sent">{{ .PacketsSent }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">FINDNODE Received</td>
+                  <td class="text-end" data-stat="findnode-received">{{ .FindNodeReceived }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Invalid Packets</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-danger" data-stat="invalid-packets">{{ .InvalidPackets }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Filtered Responses</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-warning" data-stat="filtered-responses">{{ .FilteredResponses }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Protocol Stats Card -->
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Protocol</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">
+                    Pending Handshakes
+                    <i class="fa fa-info-circle text-muted"
+                       style="font-size: 0.8em;"
+                       role="button"
+                       data-bs-toggle="popover"
+                       data-bs-trigger="hover focus"
+                       data-bs-placement="right"
+                       data-bs-html="true"
+                       data-bs-title="Pending Handshakes"
+                       data-bs-content="Messages waiting for handshake completion. After receiving a WHOAREYOU challenge, the node performs a handshake to establish session keys before sending the actual message."></i>
+                  </td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-warning" data-stat="pending-handshakes">{{ .PendingHandshakes }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">
+                    Pending Challenges
+                    <i class="fa fa-info-circle text-muted"
+                       style="font-size: 0.8em;"
+                       role="button"
+                       data-bs-toggle="popover"
+                       data-bs-trigger="hover focus"
+                       data-bs-placement="right"
+                       data-bs-html="true"
+                       data-bs-title="Pending Challenges"
+                       data-bs-content="WHOAREYOU challenges sent to peers waiting for handshake responses. These challenges initiate the cryptographic handshake process to establish encrypted sessions."></i>
+                  </td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-info" data-stat="pending-challenges">{{ .PendingChallenges }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fork Info Card -->
+      {{ if .CurrentDigest }}
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Fork Info</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Current Fork</td>
+                  <td class="text-end" data-stat="current-fork">{{ .CurrentFork }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Fork Digest</td>
+                  <td class="text-end">
+                    <code style="font-size: 0.85em;">{{ .CurrentDigest }}</code>
+                    <i class="fa fa-copy text-muted ms-1" style="font-size: 0.9em;" role="button" data-bs-toggle="tooltip" title="Copy to clipboard" data-clipboard-text="{{ .CurrentDigest }}"></i>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Grace Period</td>
+                  <td class="text-end" data-stat="grace-period">{{ .GracePeriod }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+
+      <!-- Fork Filter Stats Card -->
+      {{ if .FilterTotalChecks }}
+      <div class="col-12 col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Fork Filter</h6>
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td class="text-muted">Total Checks</td>
+                  <td class="text-end" data-stat="filter-total-checks">{{ .FilterTotalChecks }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Accepted (Current)</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-success" data-stat="filter-accepted-current">{{ .FilterAcceptedCurrent }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Accepted (Old)</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-warning" data-stat="filter-accepted-old">{{ .FilterAcceptedOld }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Rejected (Invalid)</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-danger" data-stat="filter-rejected-invalid">{{ .FilterRejectedInvalid }}</span></td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Rejected (Expired)</td>
+                  <td class="text-end"><span class="badge rounded-pill text-bg-secondary" data-stat="filter-rejected-expired">{{ .FilterRejectedExpired }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+    </div>
+
+    <!-- Old Fork Digests Table (if present) -->
+    {{ if .OldDigests }}
+    <div class="card mt-3 mb-4">
+      <div class="card-body">
+        <h6 class="card-title">Old Fork Digests (Grace Period)</h6>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Fork Digest</th>
+                <th>Remaining Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ range $digest := .OldDigests }}
+              <tr>
+                <td><code>{{ $digest.Digest }}</code></td>
+                <td>{{ $digest.Remaining.Round 1000000000 }}</td>
+              </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+{{ end }}
+
+{{ define "js" }}
+<script>
+  // Initialize Bootstrap popovers
+  document.addEventListener('DOMContentLoaded', function() {
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl);
+    });
+
+    // Handle copy button/icon clicks
+    document.querySelectorAll('[data-clipboard-text]').forEach(function(element) {
+      element.addEventListener('click', function() {
+        var text = this.getAttribute('data-clipboard-text');
+        navigator.clipboard.writeText(text).then(function() {
+          // Update tooltip to show success
+          var tooltip = bootstrap.Tooltip.getInstance(element);
+          if (!tooltip) {
+            tooltip = new bootstrap.Tooltip(element);
+          }
+          var originalTitle = element.getAttribute('data-bs-original-title') || element.getAttribute('title');
+          element.setAttribute('data-bs-original-title', 'Copied!');
+          tooltip.show();
+          setTimeout(function() {
+            element.setAttribute('data-bs-original-title', originalTitle);
+            tooltip.hide();
+          }, 2000);
+        });
+      });
+    });
+
+    // Start auto-update
+    startAutoUpdate();
+  });
+
+  function formatTimeDiff(startTime) {
+    var now = new Date();
+    var start = new Date(startTime);
+    var diff = Math.floor((now - start) / 1000); // seconds
+
+    var days = Math.floor(diff / 86400);
+    var hours = Math.floor((diff % 86400) / 3600);
+    var minutes = Math.floor((diff % 3600) / 60);
+    var seconds = diff % 60;
+
+    var parts = [];
+    if (days > 0) parts.push(days + 'd');
+    if (hours > 0) parts.push(hours + 'h');
+    if (minutes > 0) parts.push(minutes + 'm');
+    if (seconds > 0 || parts.length === 0) parts.push(seconds + 's');
+
+    return parts.join(' ');
+  }
+
+  function updateValue(selector, value) {
+    var element = document.querySelector(selector);
+    if (element && element.textContent !== value) {
+      element.textContent = value;
+    }
+  }
+
+  function updateOverviewData() {
+    fetch('/?ajax=1')
+      .then(function(response) {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      })
+      .then(function(data) {
+        // Update all dynamic values
+        updateValue('[data-stat="status"]', data.Status);
+        if (data.NetworkName) updateValue('[data-stat="network"]', data.NetworkName);
+        updateValue('[data-stat="uptime"]', formatTimeDiff(data.StartTime));
+        updateValue('[data-stat="bind-address"]', data.BindAddress);
+        if (data.LocalENRSeq) updateValue('[data-stat="enr-seq"]', data.LocalENRSeq);
+
+        // Routing table
+        updateValue('[data-stat="table-size"]', data.TableSize);
+        updateValue('[data-stat="buckets-filled"]', data.BucketsFilled + ' / 256');
+
+        // Discovery stats
+        updateValue('[data-stat="lookups-started"]', data.LookupsStarted);
+        updateValue('[data-stat="lookups-completed"]', data.LookupsCompleted);
+        updateValue('[data-stat="lookups-failed"]', data.LookupsFailed);
+
+        // Ping stats
+        updateValue('[data-stat="pings-sent"]', data.PingsSent);
+        updateValue('[data-stat="pongs-received"]', data.PongsReceived);
+        updateValue('[data-stat="ping-success-rate"]', data.PingSuccessRate.toFixed(1) + '%');
+
+        // Session stats
+        updateValue('[data-stat="sessions-active"]', data.SessionsActive);
+        updateValue('[data-stat="sessions-total"]', data.SessionsTotal);
+        updateValue('[data-stat="sessions-expired"]', data.SessionsExpired);
+
+        // Packet stats
+        updateValue('[data-stat="packets-received"]', data.PacketsReceived);
+        updateValue('[data-stat="packets-sent"]', data.PacketsSent);
+        updateValue('[data-stat="findnode-received"]', data.FindNodeReceived);
+        updateValue('[data-stat="invalid-packets"]', data.InvalidPackets);
+        updateValue('[data-stat="filtered-responses"]', data.FilteredResponses);
+
+        // Protocol stats
+        updateValue('[data-stat="pending-handshakes"]', data.PendingHandshakes);
+        updateValue('[data-stat="pending-challenges"]', data.PendingChallenges);
+
+        // Fork info (if present)
+        if (data.CurrentFork) updateValue('[data-stat="current-fork"]', data.CurrentFork);
+        if (data.GracePeriod) updateValue('[data-stat="grace-period"]', data.GracePeriod);
+
+        // Fork filter stats (if present)
+        if (data.FilterTotalChecks) {
+          updateValue('[data-stat="filter-total-checks"]', data.FilterTotalChecks);
+          updateValue('[data-stat="filter-accepted-current"]', data.FilterAcceptedCurrent);
+          updateValue('[data-stat="filter-accepted-old"]', data.FilterAcceptedOld);
+          updateValue('[data-stat="filter-rejected-invalid"]', data.FilterRejectedInvalid);
+          updateValue('[data-stat="filter-rejected-expired"]', data.FilterRejectedExpired);
+        }
+      })
+      .catch(function(error) {
+        console.error('Error fetching overview data:', error);
+      });
+  }
+
+  function startAutoUpdate() {
+    // Update every 10 seconds
+    setInterval(updateOverviewData, 10000);
+  }
+</script>
+{{ end }}
+
+{{ define "css" }}
+<style>
+  /* Ensure equal height for all stat cards */
+  .stats-card {
+    height: 100%;
+  }
+
+  /* Make the input groups look better - light mode */
+  .input-group .form-control {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+  }
+
+  /* Dark mode adjustments */
+  [data-bs-theme="dark"] .input-group .form-control {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+  }
+
+  /* Improve table styling in cards */
+  .card-body .table {
+    margin-top: 0.5rem;
+  }
+
+  .card-body .table td {
+    padding: 0.4rem 0.5rem;
+    border: none;
+    vertical-align: middle;
+  }
+
+  .card-body .table tbody tr:not(:last-child) td {
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+  }
+
+  /* Make labels slightly smaller and muted */
+  .card-body .table td.text-muted {
+    font-size: 0.9em;
+    width: 50%;
+  }
+
+  /* Align values to the right */
+  .card-body .table td.text-end {
+    font-weight: 500;
+  }
+</style>
+{{ end }}

@@ -1,0 +1,353 @@
+{{ define "page" }}
+  <div class="container mt-2">
+    <h3 class="py-2">
+      Routing Table Nodes
+      <i class="fa fa-info-circle text-muted"
+         style="font-size: 0.9em;"
+         role="button"
+         data-bs-toggle="popover"
+         data-bs-trigger="hover focus"
+         data-bs-placement="bottom"
+         data-bs-html="true"
+         data-bs-title="Kademlia Routing Table"
+         data-bs-content="The routing table stores discovered nodes organized into 256 buckets based on their XOR distance from this node. Each bucket holds nodes at a specific distance range, ensuring efficient peer discovery across the network."></i>
+    </h3>
+
+    <!-- Summary Card -->
+    <div class="card mt-3">
+      <div class="card-body py-2">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <strong>Total Nodes:</strong>
+            <span class="badge rounded-pill text-bg-primary fs-6 ms-1">{{ .TotalNodes }}</span>
+          </div>
+          {{ if .CurrentForkDigest }}
+          <div class="col-auto">
+            <strong>Current Fork Digest:</strong>
+            <code class="ms-1">{{ .CurrentForkDigest }}</code>
+          </div>
+          {{ end }}
+        </div>
+      </div>
+    </div>
+
+    {{ if .Buckets }}
+    <div class="card mt-3">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="sticky-top">
+              <tr>
+                <th style="width: 60px;">Bucket</th>
+                <th>Peer ID</th>
+                <th style="width: 140px;">IP:Port</th>
+                <th style="width: 100px;">Fork</th>
+                <th style="width: 70px;">ENR Seq</th>
+                <th style="width: 50px;">ENR</th>
+                <th style="width: 100px;">First Seen</th>
+                <th style="width: 100px;">Last Seen</th>
+                <th style="width: 70px;">Success</th>
+                <th style="width: 70px;">Failures</th>
+                <th style="width: 60px;">Score</th>
+                <th style="width: 70px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ range $bucketIdx, $bucket := .Buckets }}
+              <!-- Bucket Divider Row -->
+              <tr class="bucket-divider">
+                <td colspan="12" class="py-1 px-3">
+                  <small class="text-muted">
+                    Bucket {{ $bucket.Index }}
+                    <span class="mx-2">•</span>
+                    {{ $bucket.NodeCount }} {{ if eq $bucket.NodeCount 1 }}node{{ else }}nodes{{ end }}
+                  </small>
+                </td>
+              </tr>
+              <!-- Bucket Nodes -->
+              {{ range $nodeIdx, $node := $bucket.Nodes }}
+              <tr>
+                <td class="text-muted text-center"><small>{{ $bucket.Index }}</small></td>
+                <td class="node-id-cell">
+                  <code class="text-truncate d-inline-block" style="max-width: 400px; font-size: 0.85em;">{{ $node.PeerID }}</code>
+                  <i class="fa fa-copy text-muted ms-1" role="button" data-bs-toggle="tooltip" title="Copy Peer ID" data-clipboard-text="{{ $node.PeerID }}"></i>
+                </td>
+                <td>
+                  <code>{{ $node.IP }}:{{ $node.Port }}</code>
+                </td>
+                <td>
+                  {{ if $node.HasForkData }}
+                    {{ if $node.IsCurrentFork }}
+                      <code class="text-success" data-bs-toggle="tooltip" title="Current fork">{{ $node.ForkDigest }}</code>
+                    {{ else }}
+                      <code class="text-warning" data-bs-toggle="tooltip" title="Old fork">{{ $node.ForkDigest }}</code>
+                    {{ end }}
+                  {{ else }}
+                    <span class="text-muted">-</span>
+                  {{ end }}
+                </td>
+                <td class="text-center">
+                  <small class="text-muted">{{ $node.ENRSeq }}</small>
+                </td>
+                <td class="text-center">
+                  {{ if $node.ENR }}
+                    <i class="fa fa-copy enr-copy-btn" role="button" data-bs-toggle="tooltip" title="Copy ENR" data-clipboard-text="{{ $node.ENR }}"></i>
+                  {{ else }}
+                    <span class="text-muted">-</span>
+                  {{ end }}
+                </td>
+                <td>
+                  <small data-timer="{{ $node.FirstSeen.Unix }}">{{ formatTimeDiff $node.FirstSeen }}</small>
+                </td>
+                <td>
+                  <small data-timer="{{ if $node.LastSeen.IsZero }}0{{ else }}{{ $node.LastSeen.Unix }}{{ end }}">{{ formatTimeDiff $node.LastSeen }}</small>
+                </td>
+                <td class="text-center">
+                  <small class="text-success">{{ $node.SuccessCount }}</small>
+                </td>
+                <td class="text-center">
+                  <small class="text-danger">{{ $node.FailureCount }}</small>
+                </td>
+                <td class="text-center">
+                  <small class="{{ if gtf (toFloat64 $node.Score) 0.0 }}text-success{{ else if ltf (toFloat64 $node.Score) 0.0 }}text-warning{{ else }}text-muted{{ end }}">{{ $node.Score }}</small>
+                </td>
+                <td class="text-center">
+                  {{ if $node.IsAlive }}
+                    <span class="badge badge-sm rounded-pill text-bg-success">Alive</span>
+                  {{ else }}
+                    <span class="badge badge-sm rounded-pill text-bg-secondary">Dead</span>
+                  {{ end }}
+                </td>
+              </tr>
+              {{ end }}
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {{ else }}
+    <div class="card mt-3">
+      <div class="card-body text-center py-4">
+        <p class="text-muted mb-0">No nodes in the routing table yet.</p>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+{{ end }}
+
+{{ define "js" }}
+<script>
+  // Initialize Bootstrap popovers and tooltips
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl);
+    });
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Handle clipboard copy for all elements with data-clipboard-text
+    document.querySelectorAll('[data-clipboard-text]').forEach(function(element) {
+      element.addEventListener('click', function(e) {
+        e.preventDefault();
+        var text = this.getAttribute('data-clipboard-text');
+
+        // Use modern clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(function() {
+            // Show feedback
+            var originalTitle = element.getAttribute('data-bs-original-title') || element.getAttribute('title');
+            var tooltip = bootstrap.Tooltip.getInstance(element);
+            if (tooltip) {
+              tooltip.setContent({ '.tooltip-inner': 'Copied!' });
+              setTimeout(function() {
+                tooltip.setContent({ '.tooltip-inner': originalTitle });
+              }, 1500);
+            }
+          }).catch(function(err) {
+            console.error('Failed to copy:', err);
+          });
+        } else {
+          // Fallback for older browsers
+          var textArea = document.createElement('textarea');
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+          } catch (err) {
+            console.error('Failed to copy:', err);
+          }
+          document.body.removeChild(textArea);
+        }
+      });
+    });
+
+    // Update time displays every second
+    function updateTimers() {
+      var now = Math.floor(Date.now() / 1000);
+      document.querySelectorAll('[data-timer]').forEach(function(element) {
+        var timestamp = parseInt(element.getAttribute('data-timer'));
+        if (timestamp === 0) {
+          element.innerHTML = '<span class="text-muted">never</span>';
+          return;
+        }
+
+        var diff = now - timestamp;
+        var timeStr;
+
+        if (diff < 1) {
+          timeStr = 'now';
+        } else if (diff < 60) {
+          timeStr = diff + ' sec ago';
+        } else if (diff < 3600) {
+          timeStr = Math.floor(diff / 60) + ' min ago';
+        } else if (diff < 86400) {
+          timeStr = Math.floor(diff / 3600) + ' hr ago';
+        } else {
+          timeStr = Math.floor(diff / 86400) + ' days ago';
+        }
+
+        element.textContent = timeStr;
+      });
+    }
+
+    // Update immediately and then every second
+    updateTimers();
+    setInterval(updateTimers, 1000);
+  });
+
+  // Auto-refresh every 30 seconds
+  setTimeout(function() {
+    window.location.reload();
+  }, 30000);
+</script>
+{{ end }}
+
+{{ define "css" }}
+<style>
+/* Custom container width for extra large screens */
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1600px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .container {
+        max-width: 1800px;
+    }
+}
+
+/* Table styling */
+.table {
+    font-size: 0.9rem;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--bs-secondary);
+    border-bottom: 2px solid var(--bs-border-color);
+    padding: 0.75rem 0.5rem;
+}
+
+.table td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+/* Bucket divider styling - more subtle */
+.bucket-divider td {
+    background-color: var(--bs-tertiary-bg) !important;
+    border-top: 1px solid var(--bs-border-color) !important;
+    border-bottom: 1px solid var(--bs-border-color-translucent) !important;
+    font-size: 0.8rem;
+    letter-spacing: 0.3px;
+}
+
+.bucket-divider:hover {
+    background-color: var(--bs-tertiary-bg) !important;
+}
+
+/* Sticky header for the table */
+thead.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bs-body-bg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+[data-bs-theme="dark"] thead.sticky-top {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Node ID cell styling */
+.node-id-cell {
+    max-width: 400px;
+}
+
+.node-id-cell code {
+    font-size: 0.85em;
+}
+
+/* Table hover effect */
+tbody tr:not(.bucket-divider):hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.03);
+}
+
+[data-bs-theme="dark"] tbody tr:not(.bucket-divider):hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+/* Badge sizing */
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* ENR copy button styling */
+.enr-copy-btn {
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.15s ease;
+    color: var(--bs-secondary);
+}
+
+.enr-copy-btn:hover {
+    transform: scale(1.15);
+    color: var(--bs-primary) !important;
+}
+
+.enr-copy-btn:active {
+    transform: scale(0.95);
+}
+
+/* Copy icon styling */
+.fa-copy {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.fa-copy:hover {
+    transform: scale(1.15);
+    color: var(--bs-primary) !important;
+}
+
+/* Code elements */
+code {
+    font-size: 0.875em;
+}
+</style>
+{{ end }}

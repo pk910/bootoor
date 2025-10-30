@@ -1,0 +1,280 @@
+{{ define "page" }}
+  <div class="container mt-2">
+
+    <div class="card mt-2">
+      <div class="card-body px-0 py-3">
+        <h2 class="px-2">Clients</h2>
+        <div class="table-responsive px-0 py-1">
+          <table class="table table-nobr" id="clients">
+            <thead>
+              <tr>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="index"># <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="name">Name <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="headslot">Head Slot <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="headroot">Head Root <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="status">Status <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="useable">Useable <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="type">Type <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="version">Version <i class="fa fa-sort"></i></a></th>
+                <th><a href="#" class="sort-header text-decoration-none" data-sort="cgc">CGC <i class="fa fa-sort"></i></a></th>
+              </tr>
+            </thead>
+              <tbody>
+                {{ range $i, $client := .Clients }}
+                  <tr>
+                    <td>{{ $client.Index }}</td>
+                    <td>{{ $client.Name }}</td>
+                    <td>{{ $client.HeadSlot }}</td>
+                    <td>
+                      <span class="text-truncate d-inline-block" style="max-width: 200px">0x{{ printf "%x" $client.HeadRoot }}</span>
+                      <i class="fa fa-copy text-muted p-1" role="button" data-bs-toggle="tooltip" title="Copy to clipboard" data-clipboard-text="0x{{ printf "%x" $client.HeadRoot }}"></i>
+                    </td>
+                    <td>
+                      {{ if eq $client.Status "online" }}
+                        <span class="badge rounded-pill text-bg-success">Online</span>
+                      {{ else if eq $client.Status "synchronizing" }}
+                        <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip" data-bs-placement="top" title="Updated: {{ formatTimeDiff $client.LastRefresh }}">Synchronizing</span>
+                      {{ else if eq $client.Status "optimistic" }}
+                        <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip" data-bs-placement="top" title="Updated: {{ formatTimeDiff $client.LastRefresh }}">Optimistic</span>
+                      {{ else if eq $client.Status "offline" }}
+                        <span class="badge rounded-pill text-bg-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Updated: {{ formatTimeDiff $client.LastRefresh }}, Error: {{ $client.LastError }}">Offline</span>
+                      {{ else }}
+                        <span class="badge rounded-pill text-bg-secondary">{{ $client.Status }}</span>
+                      {{ end }}
+                    </td>
+                    <td>
+                      {{ if .IsReady }}
+                        <span class="badge rounded-pill text-bg-success">yes</span>
+                      {{ else }}
+                        <span class="badge rounded-pill text-bg-danger">no</span>
+                      {{ end }}
+                    </td>
+                    <td>
+                      {{ if eq $client.Type 1 }}
+                        <span class="badge rounded-pill text-bg-success">Lighthouse</span>
+                      {{ else if eq $client.Type 2 }}
+                        <span class="badge rounded-pill text-bg-success">Lodestar</span>
+                      {{ else if eq $client.Type 3 }}
+                        <span class="badge rounded-pill text-bg-success">Nimbus</span>
+                      {{ else if eq $client.Type 4 }}
+                        <span class="badge rounded-pill text-bg-success">Prysm</span>
+                      {{ else if eq $client.Type 5 }}
+                        <span class="badge rounded-pill text-bg-success">Teku</span>
+                      {{ else if eq $client.Type 6 }}
+                        <span class="badge rounded-pill text-bg-success">Grandine</span>
+                      {{ else if eq $client.Type 7 }}
+                        <span class="badge rounded-pill text-bg-success">Caplin</span>
+                      {{ else }}
+                        <span class="badge rounded-pill text-bg-secondary">Unknown</span>
+                      {{ end }}
+                    </td>
+                    <td>
+                      <span class="text-truncate d-inline-block" style="max-width: 400px">{{ $client.Version }}</span>
+                      <i class="fa fa-copy text-muted p-1" role="button" data-bs-toggle="tooltip" title="Copy to clipboard" data-clipboard-text="{{ $client.Version }}"></i>
+                    </td>
+                    <td>
+                      {{ $client.CustodyGroupCount }}
+                    </td>
+                  </tr>
+                {{ end }}
+              </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="placeholder" style="height:30px;"></div>
+    <div class="card mt-2">
+      <div class="card-body px-0 py-3">
+        <h2 class="px-2">Cached Block Headers</h2>
+        <div class="table-responsive px-0 py-1">
+          <table class="table table-nobr" id="blocks">
+            <thead>
+              <tr>
+                <th>Slot</th>
+                <th>Root</th>
+                <th>Seen By</th>
+              </tr>
+            </thead>
+              <tbody>
+                {{ range $i, $block := .Blocks }}
+                  <tr>
+                    <td>{{ $block.Slot }}</td>
+                    <td>0x{{ printf "%x" $block.Root }}</td>
+                    <td>
+                      {{ range $j, $cli := .SeenBy }}
+                        {{- if not (eq $j 0) }}, {{end}}{{ $cli -}}
+                      {{ end }}
+                    </td>
+                  </tr>
+                {{ end }}
+              </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="placeholder" style="height:30px;"></div>
+    <div class="card mt-2">
+      <div class="card-body px-0 py-3">
+        <h2 class="px-2">Client Forks</h2>
+        <div class="table-responsive px-0 py-1">
+          <table class="table table-nobr" id="forks">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Head Slot</th>
+                <th>Head Root</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th>Distance</th>
+              </tr>
+            </thead>
+              <tbody>
+                {{ range $i, $fork := .Forks }}
+                  <tr>
+                    <td rowspan="{{ $fork.ClientCount }}">
+                      {{ if eq $i 0 }}
+                        <span class="badge rounded-pill text-bg-success">Canonical</span>
+                      {{ else }}
+                        <span class="badge rounded-pill text-bg-warning">Fork #{{ $i }}</span>
+                      {{ end }}
+                    </td>
+                    <td rowspan="{{ $fork.ClientCount }}">{{ $fork.HeadSlot }}</td>
+                    <td rowspan="{{ $fork.ClientCount }}">
+                      <span class="text-truncate d-inline-block" style="max-width: 200px">0x{{ printf "%x" $fork.HeadRoot }}</span>
+                      <i class="fa fa-copy text-muted p-1" role="button" data-bs-toggle="tooltip" title="Copy to clipboard" data-clipboard-text="0x{{ printf "%x" $fork.HeadRoot }}"></i>
+                    </td>
+                    {{ range $i, $client := $fork.Clients }}
+                      {{- if eq $i 0 -}}
+                        {{ template "fork_client_cols" $client }}
+                      {{- end -}}
+                    {{ end }}
+                  </tr>
+                  {{ range $i, $client := $fork.Clients }}
+                    {{- if not (eq $i 0) -}}
+                      <tr>
+                        {{ template "fork_client_cols" $client }}
+                      </tr>
+                    {{- end -}}
+                  {{ end }}
+                {{ end }}
+              </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="placeholder" style="height:30px;"></div>
+    </div>
+
+  </div>
+{{ end }}
+
+{{ define "fork_client_cols" }}
+  <td>{{ .Client.Name }}</td>
+  <td>
+    {{ if eq .Client.Status "online" }}
+      <span class="badge rounded-pill text-bg-success">Online</span>
+    {{ else if eq .Client.Status "synchronizing" }}
+      <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip" data-bs-placement="top" title="Updated: {{ formatTimeDiff .Client.LastRefresh }}">Synchronizing</span>
+    {{ else if eq .Client.Status "optimistic" }}
+      <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip" data-bs-placement="top" title="Updated: {{ formatTimeDiff .Client.LastRefresh }}">Optimistic</span>
+    {{ else if eq .Client.Status "offline" }}
+      <span class="badge rounded-pill text-bg-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Updated: {{ formatTimeDiff .Client.LastRefresh }}, Error: {{ .Client.LastError }}">Offline</span>
+    {{ else }}
+      <span class="badge rounded-pill text-bg-dark">{{ .Client.Status }}</span>
+    {{ end }}
+  </td>
+  <td>
+    {{ if eq .Distance 0 }}
+      <span class="badge rounded-pill text-bg-success">{{ .Distance }} blocks</span>
+    {{ else }}
+      <span class="badge rounded-pill text-bg-warning" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="head slot {{ .Client.HeadSlot }}">{{ .Distance }} blocks</span>
+    {{ end }}
+  </td>
+{{ end }}
+
+
+{{ define "js" }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    /* Handle sorting for client table */
+    const sortHeaders = document.querySelectorAll('.sort-header');
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort');
+    const currentOrder = urlParams.get('order') || 'asc';
+
+    /* Update header appearance based on current sort */
+    if (currentSort) {
+        sortHeaders.forEach(header => {
+            const sortBy = header.getAttribute('data-sort');
+            const icon = header.querySelector('i');
+            if (sortBy === currentSort) {
+                if (currentOrder === 'asc') {
+                    icon.className = 'fa fa-sort-up';
+                } else {
+                    icon.className = 'fa fa-sort-down';
+                }
+            }
+        });
+    }
+
+    /* Add click handlers */
+    sortHeaders.forEach(header => {
+        header.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sortBy = this.getAttribute('data-sort');
+            let order = 'asc';
+            
+            /* Toggle order if clicking on currently sorted column */
+            if (currentSort === sortBy && currentOrder === 'asc') {
+                order = 'desc';
+            }
+            
+            /* Build new URL with sort parameters */
+            const newParams = new URLSearchParams(window.location.search);
+            newParams.set('sort', sortBy);
+            newParams.set('order', order);
+            
+            /* Redirect to sorted page */
+            window.location.href = window.location.pathname + '?' + newParams.toString();
+        });
+    });
+});
+</script>
+{{ end }}
+{{ define "css" }}
+<style>
+/* Custom container width for extra large screens */
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1600px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .container {
+        max-width: 1800px;
+    }
+}
+
+.sort-header {
+    color: inherit !important;
+    cursor: pointer;
+    user-select: none;
+    display: inline-block;
+    width: 100%;
+}
+
+.sort-header:hover {
+    color: #0d6efd !important;
+    text-decoration: none !important;
+}
+
+.sort-header i {
+    margin-left: 4px;
+    opacity: 0.6;
+}
+
+.sort-header:hover i {
+    opacity: 1;
+}
+</style>
+{{ end }}
