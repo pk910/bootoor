@@ -8,6 +8,7 @@
 package discover
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	mathrand "math/rand"
@@ -47,9 +48,6 @@ type LookupService struct {
 	// logger for debug messages
 	logger logrus.FieldLogger
 
-	// stopCh signals lookup operations to stop
-	stopCh <-chan struct{}
-
 	// mu protects lookup state
 	mu sync.RWMutex
 
@@ -77,9 +75,6 @@ type Config struct {
 	// LookupTimeout is the timeout for lookup operations
 	LookupTimeout time.Duration
 
-	// StopCh signals that lookups should be interrupted
-	StopCh <-chan struct{}
-
 	// Logger for debug messages
 	Logger logrus.FieldLogger
 }
@@ -100,7 +95,6 @@ func NewLookupService(cfg Config) *LookupService {
 		handler:       cfg.Handler,
 		alpha:         cfg.Alpha,
 		lookupTimeout: cfg.LookupTimeout,
-		stopCh:        cfg.StopCh,
 		logger:        cfg.Logger,
 	}
 }
@@ -111,21 +105,26 @@ func NewLookupService(cfg Config) *LookupService {
 // Kademlia algorithm with alpha concurrency.
 //
 // Parameters:
+//   - ctx: Context for cancellation and timeout
 //   - target: The target node ID to find
 //   - k: The number of closest nodes to return
 //
 // Returns the k closest nodes found.
-func (ls *LookupService) Lookup(target node.ID, k int) ([]*node.Node, error) {
-	return ls.lookupInternal(target, k, false)
+func (ls *LookupService) Lookup(ctx context.Context, target node.ID, k int) ([]*node.Node, error) {
+	return ls.lookupInternal(ctx, target, k, false)
 }
 
 // lookupInternal performs the actual lookup with options for random walks
-func (ls *LookupService) lookupInternal(target node.ID, k int, isRandomWalk bool) ([]*node.Node, error) {
+func (ls *LookupService) lookupInternal(ctx context.Context, target node.ID, k int, isRandomWalk bool) ([]*node.Node, error) {
 	ls.mu.Lock()
 	ls.lookupsStarted++
 	ls.mu.Unlock()
 
 	ls.logger.WithField("target", target).WithField("k", k).Debug("starting lookup")
+
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(ctx, ls.lookupTimeout)
+	defer cancel()
 
 	// Track nodes we've seen and queried
 	seen := make(map[node.ID]bool)
@@ -154,24 +153,15 @@ func (ls *LookupService) lookupInternal(target node.ID, k int, isRandomWalk bool
 		seen[n.ID()] = true
 	}
 
-	// Perform iterative lookup
-	timeout := time.After(ls.lookupTimeout)
-
 	totalAdded := 0
 
 	for {
 		select {
-		case <-timeout:
+		case <-ctx.Done():
 			ls.mu.Lock()
 			ls.lookupsFailed++
 			ls.mu.Unlock()
-			return closest, fmt.Errorf("lookup timeout")
-		case <-ls.stopCh:
-			ls.logger.Debug("lookup interrupted by shutdown")
-			ls.mu.Lock()
-			ls.lookupsFailed++
-			ls.mu.Unlock()
-			return closest, fmt.Errorf("lookup interrupted by shutdown")
+			return closest, ctx.Err()
 		default:
 		}
 
@@ -233,8 +223,20 @@ func (ls *LookupService) lookupInternal(target node.ID, k int, isRandomWalk bool
 					return
 				}
 
-				// Wait for response
-				resp := <-respChan
+				// Wait for response with context cancellation
+				var resp *protocol.Response
+				select {
+				case resp = <-respChan:
+					// Response received
+				case <-ctx.Done():
+					// Context cancelled or deadline exceeded
+					ls.logger.WithFields(logrus.Fields{
+						"peerID": n.PeerID(),
+						"addr":   n.Addr(),
+					}).Debug("discover: lookup cancelled")
+					return
+				}
+
 				if resp.Error != nil {
 					ls.logger.WithFields(logrus.Fields{
 						"peerID": n.PeerID(),
@@ -337,9 +339,9 @@ func (ls *LookupService) lookupInternal(target node.ID, k int, isRandomWalk bool
 // LookupWithFilter performs a lookup with an ENR filter.
 //
 // Only nodes that pass the filter are included in the results.
-func (ls *LookupService) LookupWithFilter(target node.ID, k int, filter enr.ENRFilter) ([]*node.Node, error) {
+func (ls *LookupService) LookupWithFilter(ctx context.Context, target node.ID, k int, filter enr.ENRFilter) ([]*node.Node, error) {
 	// Perform regular lookup
-	nodes, err := ls.Lookup(target, k*2) // Request more to account for filtering
+	nodes, err := ls.Lookup(ctx, target, k*2) // Request more to account for filtering
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +363,7 @@ func (ls *LookupService) LookupWithFilter(target node.ID, k int, filter enr.ENRF
 // RandomWalk performs a random walk to discover new nodes.
 //
 // This is used for routing table maintenance and exploring the network.
-func (ls *LookupService) RandomWalk() ([]*node.Node, error) {
+func (ls *LookupService) RandomWalk(ctx context.Context) ([]*node.Node, error) {
 	// Generate a completely random 256-bit target ID (Geth approach)
 	// This ensures the target can be at any distance from any node in the network,
 	// which allows us to explore diverse regions of the keyspace
@@ -375,7 +377,7 @@ func (ls *LookupService) RandomWalk() ([]*node.Node, error) {
 	}).Debug("discover: starting random walk")
 
 	// Perform lookup for random target using ALL nodes to break out of clusters
-	return ls.lookupInternal(target, 32, true)
+	return ls.lookupInternal(ctx, target, 32, true)
 }
 
 // findKClosest finds the k closest nodes to target from a list.

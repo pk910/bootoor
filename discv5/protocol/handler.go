@@ -403,11 +403,6 @@ func (h *Handler) handleWHOAREYOUPacket(packet *Packet, from *net.UDPAddr) error
 	)
 	h.sessions.Put(sess)
 
-	h.logger.WithFields(logrus.Fields{
-		"remoteNodeID": remoteNodeID.String()[:16],
-		"to":           from,
-	}).Info("handler: session stored (initiator)")
-
 	// Remove pending handshake
 	h.mu.Lock()
 	delete(h.pendingHandshakes, pendingKey)

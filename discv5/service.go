@@ -10,6 +10,7 @@
 package discv5
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -69,10 +70,11 @@ type Service struct {
 	startTime time.Time
 
 	// Lifecycle management
-	running bool
-	mu      sync.RWMutex
-	wg      sync.WaitGroup
-	stopCh  chan struct{}
+	running   bool
+	mu        sync.RWMutex
+	wg        sync.WaitGroup
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 }
 
 // New creates a new discv5 service.
@@ -189,15 +191,16 @@ func New(cfg *Config) (*Service, error) {
 		handler:   protocolHandler,
 		nodeDB:    cfg.NodeDB,
 		logger:    cfg.Logger,
-		stopCh:    make(chan struct{}),
 	}
 
-	// Create lookup service with stopCh for graceful shutdown
+	// Create context for graceful shutdown
+	s.ctx, s.cancelCtx = context.WithCancel(context.Background())
+
+	// Create lookup service
 	lookupConfig := discover.Config{
 		LocalNode: localNode,
 		Table:     routingTable,
 		Handler:   protocolHandler,
-		StopCh:    s.stopCh,
 		Logger:    cfg.Logger,
 	}
 	lookupService := discover.NewLookupService(lookupConfig)
@@ -262,7 +265,7 @@ func (s *Service) Stop() error {
 	s.mu.Unlock()
 
 	// Signal stop to background tasks
-	close(s.stopCh)
+	s.cancelCtx()
 
 	// Wait for background tasks
 	s.wg.Wait()
@@ -304,7 +307,7 @@ func (s *Service) maintenanceLoop() {
 
 	for {
 		select {
-		case <-s.stopCh:
+		case <-s.ctx.Done():
 			return
 
 		case <-tableMaintenance.C:
@@ -377,7 +380,7 @@ func (s *Service) performAlivenessCheck() {
 func (s *Service) performRandomWalk() {
 	// Check if we're shutting down
 	select {
-	case <-s.stopCh:
+	case <-s.ctx.Done():
 		s.logger.Debug("skipping random walk due to shutdown")
 		return
 	default:
@@ -390,7 +393,7 @@ func (s *Service) performRandomWalk() {
 
 	s.logger.Debug("discv5: performing random walk")
 
-	_, err := s.lookup.RandomWalk()
+	_, err := s.lookup.RandomWalk(s.ctx)
 	if err != nil {
 		s.logger.WithError(err).Debug("random walk failed")
 	}
@@ -463,7 +466,7 @@ func (s *Service) connectBootNodes() {
 
 		// Perform lookup using boot node
 		s.logger.WithField("peerID", bootNode.PeerID()).Debug("discv5: performing lookup via boot node")
-		_, err = s.lookup.Lookup(bootNode.ID(), 16)
+		_, err = s.lookup.Lookup(s.ctx, bootNode.ID(), 16)
 		if err != nil {
 			s.logger.WithField("peerID", bootNode.PeerID()).WithError(err).Debug("boot node lookup failed")
 		}
@@ -486,8 +489,8 @@ func (s *Service) NodeDB() nodedb.DB {
 }
 
 // Lookup performs a node lookup for the target ID.
-func (s *Service) Lookup(target node.ID) ([]*node.Node, error) {
-	return s.lookup.Lookup(target, 16)
+func (s *Service) Lookup(ctx context.Context, target node.ID) ([]*node.Node, error) {
+	return s.lookup.Lookup(ctx, target, 16)
 }
 
 // ForkFilterStatsProvider provides fork filter statistics.
