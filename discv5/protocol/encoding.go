@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/pk910/bootoor/discv5/crypto"
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/crypto"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // EncodeRandomPacket encodes a random packet to trigger WHOAREYOU (go-ethereum style).

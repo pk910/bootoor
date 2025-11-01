@@ -13,8 +13,8 @@ import (
 	"fmt"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/pk910/bootoor/discv5/crypto"
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/crypto"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // SessionKeys contains the derived encryption keys for a session.

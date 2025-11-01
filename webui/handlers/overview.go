@@ -5,25 +5,25 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pk910/bootoor/webui/server"
+	"github.com/ethpandaops/bootnodoor/webui/server"
 )
 
 // OverviewPageData contains data for the overview page
 type OverviewPageData struct {
-	Status        string
-	NetworkName   string
-	StartTime     time.Time
-	PeerID        string
-	BindAddress   string
-	LocalENR      string
-	LocalENRSeq   uint64
-	CurrentFork     string
-	CurrentDigest   string
-	PreviousFork    string
-	PreviousDigest  string
-	GenesisDigest   string
-	OldDigests      []OldDigestInfo
-	GracePeriod     string
+	Status         string
+	NetworkName    string
+	StartTime      time.Time
+	PeerID         string
+	BindAddress    string
+	LocalENR       string
+	LocalENRSeq    uint64
+	CurrentFork    string
+	CurrentDigest  string
+	PreviousFork   string
+	PreviousDigest string
+	GenesisDigest  string
+	OldDigests     []OldDigestInfo
+	GracePeriod    string
 
 	// Routing table stats
 	TableSize     int
@@ -137,32 +137,32 @@ func (fh *FrontendHandler) getOverviewPageData() (*OverviewPageData, error) {
 	}
 
 	pageData := &OverviewPageData{
-		Status:            "Online",
-		StartTime:         time.Now().Add(-stats.Uptime),
-		PeerID:            stats.PeerID,
-		BindAddress:       stats.BindAddress,
-		LocalENR:          localENR,
-		LocalENRSeq:       localNode.Record().Seq(),
-		TableSize:         stats.TableSize,
-		BucketsFilled:     stats.BucketsFilled,
-		ActiveNodes:       stats.ActiveNodes,
-		InactiveNodes:     stats.InactiveNodes,
-		LookupsStarted:    stats.LookupStats.LookupsStarted,
-		LookupsCompleted:  stats.LookupStats.LookupsCompleted,
-		LookupsFailed:     stats.LookupStats.LookupsFailed,
-		PingsSent:         stats.PingStats.PingsSent,
-		PongsReceived:     stats.PingStats.PongsReceived,
-		PingSuccessRate:   stats.PingStats.SuccessRate,
-		SessionsTotal:     stats.SessionStats.Total,
-		SessionsActive:    stats.SessionStats.Active,
-		SessionsExpired:   stats.SessionStats.Expired,
-		PendingHandshakes: stats.HandlerStats.PendingHandshakes,
-		PendingChallenges: stats.HandlerStats.PendingChallenges,
-		PacketsReceived:   stats.HandlerStats.PacketsReceived,
-		PacketsSent:       stats.HandlerStats.PacketsSent,
-		InvalidPackets:    stats.HandlerStats.InvalidPackets,
-		FilteredResponses: stats.HandlerStats.FilteredResponses,
-		FindNodeReceived:  stats.HandlerStats.FindNodeReceived,
+		Status:             "Online",
+		StartTime:          time.Now().Add(-stats.Uptime),
+		PeerID:             stats.PeerID,
+		BindAddress:        stats.BindAddress,
+		LocalENR:           localENR,
+		LocalENRSeq:        localNode.Record().Seq(),
+		TableSize:          stats.TableSize,
+		BucketsFilled:      stats.BucketsFilled,
+		ActiveNodes:        stats.ActiveNodes,
+		InactiveNodes:      stats.InactiveNodes,
+		LookupsStarted:     stats.LookupStats.LookupsStarted,
+		LookupsCompleted:   stats.LookupStats.LookupsCompleted,
+		LookupsFailed:      stats.LookupStats.LookupsFailed,
+		PingsSent:          stats.PingStats.PingsSent,
+		PongsReceived:      stats.PingStats.PongsReceived,
+		PingSuccessRate:    stats.PingStats.SuccessRate,
+		SessionsTotal:      stats.SessionStats.Total,
+		SessionsActive:     stats.SessionStats.Active,
+		SessionsExpired:    stats.SessionStats.Expired,
+		PendingHandshakes:  stats.HandlerStats.PendingHandshakes,
+		PendingChallenges:  stats.HandlerStats.PendingChallenges,
+		PacketsReceived:    stats.HandlerStats.PacketsReceived,
+		PacketsSent:        stats.HandlerStats.PacketsSent,
+		InvalidPackets:     stats.HandlerStats.InvalidPackets,
+		FilteredResponses:  stats.HandlerStats.FilteredResponses,
+		FindNodeReceived:   stats.HandlerStats.FindNodeReceived,
 		DBQueueSize:        stats.NodeDBStats.QueueSize,
 		DBProcessedUpdates: stats.NodeDBStats.ProcessedUpdates,
 		DBMergedUpdates:    stats.NodeDBStats.MergedUpdates,

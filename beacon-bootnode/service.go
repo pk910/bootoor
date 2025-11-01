@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pk910/bootoor/beacon-bootnode/config"
-	"github.com/pk910/bootoor/beacon-bootnode/discover"
-	"github.com/pk910/bootoor/beacon-bootnode/nodedb"
-	"github.com/pk910/bootoor/beacon-bootnode/table"
-	"github.com/pk910/bootoor/discv5"
-	"github.com/pk910/bootoor/discv5/enr"
-	"github.com/pk910/bootoor/discv5/node"
-	"github.com/pk910/bootoor/discv5/protocol"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/config"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/discover"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/nodedb"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/table"
+	"github.com/ethpandaops/bootnodoor/discv5"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/protocol"
 	"github.com/sirupsen/logrus"
 )
 

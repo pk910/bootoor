@@ -3,7 +3,7 @@ package session
 import (
 	"fmt"
 
-	"github.com/pk910/bootoor/discv5/crypto"
+	"github.com/ethpandaops/bootnodoor/discv5/crypto"
 )
 
 // EncryptMessage encrypts a message using AES-128-GCM.

@@ -16,14 +16,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	bootnode "github.com/pk910/bootoor/beacon-bootnode"
-	"github.com/pk910/bootoor/beacon-bootnode/config"
-	"github.com/pk910/bootoor/beacon-bootnode/db"
-	"github.com/pk910/bootoor/beacon-bootnode/nodedb"
-	"github.com/pk910/bootoor/discv5/enr"
-	"github.com/pk910/bootoor/discv5/node"
-	"github.com/pk910/bootoor/webui"
-	"github.com/pk910/bootoor/webui/types"
+	bootnode "github.com/ethpandaops/bootnodoor/beacon-bootnode"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/config"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/db"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/nodedb"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/webui"
+	"github.com/ethpandaops/bootnodoor/webui/types"
 )
 
 var (
@@ -56,7 +56,7 @@ var (
 
 	// Root command
 	rootCmd = &cobra.Command{
-		Use:   "bootnode",
+		Use:   "bootnodoor",
 		Short: "Ethereum Discovery v5 Bootnode",
 		Long: `Bootnode is an Ethereum Discovery v5 bootnode implementation.
 
@@ -106,7 +106,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableWebUI, "web-ui", false, "Enable web UI")
 	rootCmd.Flags().StringVar(&webUIHost, "web-host", "0.0.0.0", "Web UI host")
 	rootCmd.Flags().IntVar(&webUIPort, "web-port", 8080, "Web UI port")
-	rootCmd.Flags().StringVar(&webUISite, "web-sitename", "Bootoor", "Web UI site name")
+	rootCmd.Flags().StringVar(&webUISite, "web-sitename", "bootnodoor", "Web UI site name")
 	rootCmd.Flags().BoolVar(&webUIPprof, "pprof", false, "Enable pprof endpoints")
 
 	// Bootnodes

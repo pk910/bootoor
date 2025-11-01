@@ -14,8 +14,8 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/pk910/bootoor/discv5/crypto"
-	"github.com/pk910/bootoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/crypto"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
 )
 
 // Message type constants for discv5 protocol

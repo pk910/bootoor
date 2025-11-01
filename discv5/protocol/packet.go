@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/pk910/bootoor/discv5/crypto"
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/crypto"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // Packet types for discv5 protocol (matches go-ethereum v5wire flags)

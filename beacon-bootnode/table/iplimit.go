@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // DefaultMaxNodesPerIP is the default maximum nodes per IP address.

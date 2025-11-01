@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pk910/bootoor/discv5/enr"
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // DefaultRequestTimeout is the default timeout for requests (5 seconds).

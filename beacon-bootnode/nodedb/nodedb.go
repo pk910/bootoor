@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/db"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/jmoiron/sqlx"
-	"github.com/pk910/bootoor/beacon-bootnode/db"
-	"github.com/pk910/bootoor/discv5/enr"
-	"github.com/pk910/bootoor/discv5/node"
 	"github.com/sirupsen/logrus"
 )
 
@@ -46,21 +46,21 @@ type NodeDB struct {
 	updateQueueLock sync.Mutex
 
 	// Stats tracking
-	stats      NodeDBStats
-	statsLock  sync.RWMutex
+	stats     NodeDBStats
+	statsLock sync.RWMutex
 
 	wg sync.WaitGroup
 }
 
 // NodeDBStats contains statistics about database operations.
 type NodeDBStats struct {
-	QueueSize         int   // Current number of pending updates in queue
-	ProcessedUpdates  int64 // Total updates processed
-	MergedUpdates     int64 // Total updates merged with existing pending
-	FailedUpdates     int64 // Total updates that failed
-	Transactions      int64 // Total database transactions executed
-	TotalQueries      int64 // Total database queries executed
-	OpenConnections   int   // Current number of open DB connections
+	QueueSize        int   // Current number of pending updates in queue
+	ProcessedUpdates int64 // Total updates processed
+	MergedUpdates    int64 // Total updates merged with existing pending
+	FailedUpdates    int64 // Total updates that failed
+	Transactions     int64 // Total database transactions executed
+	TotalQueries     int64 // Total database queries executed
+	OpenConnections  int   // Current number of open DB connections
 }
 
 // NewNodeDB creates a new node database wrapper.

@@ -1,4 +1,4 @@
-module github.com/pk910/bootoor
+module github.com/ethpandaops/bootnodoor
 
 go 1.24.0
 

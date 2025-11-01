@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pk910/bootoor/beacon-bootnode/nodedb"
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/nodedb"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/sirupsen/logrus"
 )
 

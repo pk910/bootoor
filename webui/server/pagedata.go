@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pk910/bootoor/buildver"
+	"github.com/ethpandaops/bootnodoor/buildver"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,7 +70,7 @@ func InitPageData(r *http.Request, active, path, title string, mainTemplates []s
 	data := &PageData{
 		Meta: &Meta{
 			Title:       fullTitle,
-			Description: "Bootoor: Ethereum Discovery v5 Bootnode",
+			Description: "bootnodoor: Ethereum Discovery v5 Bootnode",
 			Domain:      host,
 			Path:        path,
 			Templates:   strings.Join(mainTemplates, ","),

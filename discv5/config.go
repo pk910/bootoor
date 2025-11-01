@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/pk910/bootoor/discv5/enr"
-	"github.com/pk910/bootoor/discv5/protocol"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/protocol"
 	"github.com/sirupsen/logrus"
 )
 

@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pk910/bootoor/discv5/node"
-	"github.com/pk910/bootoor/webui/server"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/webui/server"
 )
 
 // NodesPageData contains data for the nodes page

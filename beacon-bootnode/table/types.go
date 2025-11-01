@@ -3,7 +3,7 @@ package table
 import (
 	"time"
 
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // DefaultPingInterval is how often we PING nodes to check liveness.

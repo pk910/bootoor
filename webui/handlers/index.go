@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/pk910/bootoor/webui/server"
+	"github.com/ethpandaops/bootnodoor/webui/server"
 )
 
 type IndexPage struct {

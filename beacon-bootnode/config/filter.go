@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pk910/bootoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
 )
 
 // DefaultGracePeriod is the default time to keep nodes with old fork digests.
@@ -549,17 +549,17 @@ func uint64ToBytes(v uint64) []byte {
 
 // ForkFilterStats contains statistics about fork digest filtering.
 type ForkFilterStats struct {
-	NetworkName         string
-	CurrentFork         string
-	CurrentDigest       string
-	PreviousFork        string
-	PreviousDigest      string
-	GenesisDigest       string
-	GracePeriod         string
-	OldDigests          map[string]time.Duration
-	AcceptedCurrent     int
-	AcceptedOld         int
-	RejectedInvalid     int
-	RejectedExpired     int
-	TotalChecks         int
+	NetworkName     string
+	CurrentFork     string
+	CurrentDigest   string
+	PreviousFork    string
+	PreviousDigest  string
+	GenesisDigest   string
+	GracePeriod     string
+	OldDigests      map[string]time.Duration
+	AcceptedCurrent int
+	AcceptedOld     int
+	RejectedInvalid int
+	RejectedExpired int
+	TotalChecks     int
 }

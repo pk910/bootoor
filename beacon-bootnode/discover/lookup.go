@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pk910/bootoor/beacon-bootnode/table"
-	"github.com/pk910/bootoor/discv5/enr"
-	"github.com/pk910/bootoor/discv5/node"
-	"github.com/pk910/bootoor/discv5/protocol"
+	"github.com/ethpandaops/bootnodoor/beacon-bootnode/table"
+	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/protocol"
 	"github.com/sirupsen/logrus"
 )
 

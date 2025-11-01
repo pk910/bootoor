@@ -1,4 +1,4 @@
-# Bootoor - Ethereum Discovery v5 Bootnode
+# bootnodoor - Ethereum Discovery v5 Bootnode
 
 An Ethereum Discovery v5 (discv5) bootnode implementation with intelligent fork digest filtering for the Ethereum consensus layer.
 
@@ -6,7 +6,7 @@ An Ethereum Discovery v5 (discv5) bootnode implementation with intelligent fork 
 
 ## Project Structure
 
-Bootoor consists of two main components:
+bootnodoor consists of two main components:
 
 ### 1. Generic discv5 Library (`discv5/`)
 
@@ -132,7 +132,7 @@ go build -o bootnode ./cmd/bootnode
 - `--web-ui`: Enable web UI dashboard
 - `--web-host <ip>`: Web UI host (default: `0.0.0.0`)
 - `--web-port <port>`: Web UI port (default: `8080`)
-- `--web-sitename <name>`: Web UI site name (default: `Bootoor`)
+- `--web-sitename <name>`: Web UI site name (default: `bootnodoor`)
 
 #### Logging
 
@@ -193,8 +193,8 @@ import (
     "log"
 
     ethcrypto "github.com/ethereum/go-ethereum/crypto"
-    "github.com/pk910/bootoor/discv5"
-    "github.com/pk910/bootoor/discv5/protocol"
+    "github.com/ethpandaops/bootnodoor/discv5"
+    "github.com/ethpandaops/bootnodoor/discv5/protocol"
 )
 
 func main() {
@@ -359,7 +359,7 @@ make build
 ### Project Layout
 
 ```
-bootoor/
+bootnodoor/
 ├── beacon-bootnode/      # Beacon-specific bootnode implementation
 │   ├── config/          # Fork digest filtering and CL config
 │   ├── discover/        # Lookup and ping services

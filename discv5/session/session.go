@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pk910/bootoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
 // Session represents an active encrypted session with a peer.

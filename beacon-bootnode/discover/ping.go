@@ -3,8 +3,8 @@ package discover
 import (
 	"time"
 
-	"github.com/pk910/bootoor/discv5/node"
-	"github.com/pk910/bootoor/discv5/protocol"
+	"github.com/ethpandaops/bootnodoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/discv5/protocol"
 	"github.com/sirupsen/logrus"
 )
 

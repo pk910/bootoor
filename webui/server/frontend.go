@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/pk910/bootoor/webui/types"
+	"github.com/ethpandaops/bootnodoor/webui/types"
 	"github.com/sirupsen/logrus"
 )
 

@@ -1,10 +1,10 @@
-# bootoor
+# bootnodoor
 BUILDTIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 VERSION := $(shell git rev-parse --short HEAD)
 
-GOLDFLAGS += -X 'github.com/pk910/bootoor/buildver.BuildVersion="$(VERSION)"'
-GOLDFLAGS += -X 'github.com/pk910/bootoor/buildver.Buildtime="$(BUILDTIME)"'
-GOLDFLAGS += -X 'github.com/pk910/bootoor/buildver.BuildRelease="$(RELEASE)"'
+GOLDFLAGS += -X 'github.com/ethpandaops/bootnodoor/buildver.BuildVersion="$(VERSION)"'
+GOLDFLAGS += -X 'github.com/ethpandaops/bootnodoor/buildver.Buildtime="$(BUILDTIME)"'
+GOLDFLAGS += -X 'github.com/ethpandaops/bootnodoor/buildver.BuildRelease="$(RELEASE)"'
 
 .PHONY: all test coverage clean lint fmt check dev-build
 
