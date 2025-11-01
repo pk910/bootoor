@@ -75,8 +75,8 @@ func TestIsWANAddress(t *testing.T) {
 
 func TestIsRoutableAddress(t *testing.T) {
 	tests := []struct {
-		ip        string
-		routable  bool
+		ip       string
+		routable bool
 	}{
 		// Routable public addresses
 		{"8.8.8.8", true},

@@ -23,10 +23,18 @@
           </div>
           <div class="col-auto">
             <strong>Active Pool:</strong>
-            <span class="badge rounded-pill text-bg-success fs-6 ms-1">{{ .ActiveNodes }}</span>
+            <span class="badge rounded-pill text-bg-info fs-6 ms-1">{{ .ActiveNodes }}</span>
           </div>
           <div class="col-auto">
-            <strong>Inactive (DB):</strong>
+            <strong>Alive:</strong>
+            <span class="badge rounded-pill text-bg-success fs-6 ms-1">{{ .AliveNodes }}</span>
+          </div>
+          <div class="col-auto">
+            <strong>Dead:</strong>
+            <span class="badge rounded-pill text-bg-secondary fs-6 ms-1">{{ .DeadNodes }}</span>
+          </div>
+          <div class="col-auto">
+            <strong>Reserve Pool (DB):</strong>
             <span class="badge rounded-pill text-bg-secondary fs-6 ms-1">{{ .InactiveNodes }}</span>
           </div>
           {{ if .CurrentForkDigest }}

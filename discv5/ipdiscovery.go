@@ -52,10 +52,10 @@ type IPDiscovery struct {
 	currentConsensusIPv6Port uint16
 
 	// config
-	minReports         int                             // Minimum reports needed
-	majorityThreshold  float64                         // Threshold for majority (0.0-1.0)
-	reportExpiry       time.Duration                   // How long to keep reports
-	recentWindow       time.Duration                   // Time window for recent reports
+	minReports         int                                       // Minimum reports needed
+	majorityThreshold  float64                                   // Threshold for majority (0.0-1.0)
+	reportExpiry       time.Duration                             // How long to keep reports
+	recentWindow       time.Duration                             // Time window for recent reports
 	onConsensusReached func(ip net.IP, port uint16, isIPv6 bool) // Callback when consensus is reached
 	logger             logrus.FieldLogger
 
@@ -417,10 +417,10 @@ type IPDiscoveryStats struct {
 	UniqueIPv6Addrs      int
 	ConsensusReachedIPv4 bool
 	ConsensusReachedIPv6 bool
-	ConsensusIPv4Addr    string            // "IP:Port" format
-	ConsensusIPv6Addr    string            // "IP:Port" format
-	IPv4Reports          map[string]int    // "IP:Port" -> count
-	IPv6Reports          map[string]int    // "IP:Port" -> count
+	ConsensusIPv4Addr    string         // "IP:Port" format
+	ConsensusIPv6Addr    string         // "IP:Port" format
+	IPv4Reports          map[string]int // "IP:Port" -> count
+	IPv6Reports          map[string]int // "IP:Port" -> count
 }
 
 // GetStats returns current statistics.

@@ -35,6 +35,12 @@ type PendingRequest struct {
 	// NodeID is the target node
 	NodeID node.ID
 
+	// Node is the target node reference (for handshakes after session becomes stale)
+	Node *node.Node
+
+	// Message is the original message that was sent (for replay after re-handshake)
+	Message Message
+
 	// Timeout is when the request expires
 	Timeout time.Time
 
@@ -93,8 +99,10 @@ func NewRequestTracker(timeout time.Duration) *RequestTracker {
 
 // AddRequest registers a pending request.
 //
+// The message and node parameters are stored for replay if the session becomes stale.
+//
 // Returns a channel that will receive the response or timeout.
-func (rt *RequestTracker) AddRequest(requestID []byte, nodeID node.ID, msgType byte) <-chan *Response {
+func (rt *RequestTracker) AddRequest(requestID []byte, n *node.Node, msg Message) <-chan *Response {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
@@ -102,7 +110,9 @@ func (rt *RequestTracker) AddRequest(requestID []byte, nodeID node.ID, msgType b
 
 	req := &PendingRequest{
 		RequestID:    requestID,
-		NodeID:       nodeID,
+		NodeID:       n.ID(),
+		Node:         n,
+		Message:      msg,
 		Timeout:      now.Add(rt.timeout),
 		ResponseChan: make(chan *Response, 1),
 		Retries:      0,
@@ -226,6 +236,62 @@ func (rt *RequestTracker) CancelRequest(requestID []byte) {
 	// Close channel and remove
 	close(req.ResponseChan)
 	delete(rt.requests, key)
+}
+
+// CancelRequestsForNode cancels all pending requests for a specific node.
+//
+// This is useful when a session becomes invalid and we need to fail fast
+// instead of waiting for timeouts.
+//
+// Returns the number of requests canceled.
+func (rt *RequestTracker) CancelRequestsForNode(nodeID node.ID) int {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	var toRemove []string
+	for key, req := range rt.requests {
+		if req.NodeID == nodeID {
+			toRemove = append(toRemove, key)
+		}
+	}
+
+	for _, key := range toRemove {
+		req := rt.requests[key]
+
+		// Send canceled error
+		select {
+		case req.ResponseChan <- &Response{
+			Message: nil,
+			NodeID:  nodeID,
+			Error:   ErrCanceled,
+		}:
+		default:
+		}
+
+		close(req.ResponseChan)
+		delete(rt.requests, key)
+	}
+
+	return len(toRemove)
+}
+
+// GetPendingRequestForNode returns the first pending request for a specific node.
+//
+// This is useful when we need to replay a message after re-establishing a session
+// due to an unexpected WHOAREYOU.
+//
+// Returns nil if no pending request exists for this node.
+func (rt *RequestTracker) GetPendingRequestForNode(nodeID node.ID) *PendingRequest {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+
+	for _, req := range rt.requests {
+		if req.NodeID == nodeID {
+			return req
+		}
+	}
+
+	return nil
 }
 
 // CleanupExpired removes expired requests.

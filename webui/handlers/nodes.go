@@ -15,6 +15,8 @@ type NodesPageData struct {
 	TotalNodes        int
 	ActiveNodes       int
 	InactiveNodes     int
+	AliveNodes        int
+	DeadNodes         int
 	CurrentForkDigest string
 	Nodes             []NodeInfo
 }
@@ -94,7 +96,16 @@ func (fh *FrontendHandler) getNodesPageData() (*NodesPageData, error) {
 		}
 	}
 
+	var aliveCount, deadCount int
+
 	for _, n := range nodes {
+		isAlive := n.IsAlive(maxNodeAge, maxFailures)
+		if isAlive {
+			aliveCount++
+		} else {
+			deadCount++
+		}
+
 		nodeInfo := NodeInfo{
 			PeerID:       n.PeerID(),
 			IP:           n.IP().String(),
@@ -103,7 +114,7 @@ func (fh *FrontendHandler) getNodesPageData() (*NodesPageData, error) {
 			LastSeen:     n.LastSeen(),
 			SuccessCount: n.SuccessCount(),
 			FailureCount: n.FailureCount(),
-			IsAlive:      n.IsAlive(maxNodeAge, maxFailures),
+			IsAlive:      isAlive,
 			Score:        n.CalculateScore(forkScoringInfo),
 			ENRSeq:       n.Record().Seq(),
 			AvgRTT:       n.AvgRTT(),
@@ -130,6 +141,8 @@ func (fh *FrontendHandler) getNodesPageData() (*NodesPageData, error) {
 	})
 
 	pageData.TotalNodes = len(nodes)
+	pageData.AliveNodes = aliveCount
+	pageData.DeadNodes = deadCount
 
 	return pageData, nil
 }

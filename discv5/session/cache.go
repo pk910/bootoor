@@ -9,8 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// DefaultSessionLifetime is the default lifetime for sessions (12 hours).
-const DefaultSessionLifetime = 12 * time.Hour
+// DefaultSessionLifetime is the default lifetime for sessions (30 minutes).
+const DefaultSessionLifetime = 30 * time.Minute
 
 // DefaultMaxSessions is the default maximum number of cached sessions.
 const DefaultMaxSessions = 1000
@@ -43,12 +43,12 @@ type Cache struct {
 //
 // Parameters:
 //   - maxSessions: Maximum number of sessions to cache (0 = unlimited)
-//   - sessionLifetime: How long sessions remain valid (0 = default 12h)
+//   - sessionLifetime: How long sessions remain valid (0 = default 30min)
 //   - logger: Optional logger for debug messages
 //
 // Example:
 //
-//	cache := NewCache(1000, 12*time.Hour, logger)
+//	cache := NewCache(1000, 30*time.Minute, logger)
 //	defer cache.Close()
 func NewCache(maxSessions int, sessionLifetime time.Duration, logger logrus.FieldLogger) *Cache {
 	if maxSessions <= 0 {
@@ -266,6 +266,11 @@ func (c *Cache) GetNodeByID(nodeID node.ID) *node.Node {
 	}
 
 	return session.GetNode()
+}
+
+// Lifetime returns the configured session lifetime.
+func (c *Cache) Lifetime() time.Duration {
+	return c.sessionLifetime
 }
 
 // Close cleans up the cache and releases resources.

@@ -14,7 +14,8 @@ import (
 // makeIDSignature creates the ID nonce signature for handshake.
 //
 // The signature proves that we own the node ID (private key) and is computed over:
-//   "discovery v5 identity proof" || challenge-data || ephemeral-pubkey || dest-node-id
+//
+//	"discovery v5 identity proof" || challenge-data || ephemeral-pubkey || dest-node-id
 //
 // This matches go-ethereum's makeIDSignature function.
 func makeIDSignature(privKey *ecdsa.PrivateKey, challenge, ephPubkey []byte, destID node.ID) ([]byte, error) {
@@ -86,10 +87,11 @@ func ecdh(privkey *ecdsa.PrivateKey, pubkey *ecdsa.PublicKey) []byte {
 // deriveKeys derives session keys using HKDF-SHA256.
 //
 // This implements the discv5 key derivation:
-//   info = "discovery v5 key agreement" || initiator-id || recipient-id
-//   kdf = HKDF-SHA256(secret, challenge, info)
-//   write-key = kdf[0:16]
-//   read-key = kdf[16:32]
+//
+//	info = "discovery v5 key agreement" || initiator-id || recipient-id
+//	kdf = HKDF-SHA256(secret, challenge, info)
+//	write-key = kdf[0:16]
+//	read-key = kdf[16:32]
 //
 // The keys are swapped depending on who initiated the handshake.
 func deriveKeys(ephPrivKey *ecdsa.PrivateKey, remotePubKey *ecdsa.PublicKey,

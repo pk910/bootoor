@@ -148,10 +148,10 @@ func NewPacketHeader(packetType byte) (*PacketHeader, error) {
 	}
 
 	return &PacketHeader{
-		ProtocolID: []byte(ProtocolID),
-		Version:    0x0001,
-		Flag:       packetType,
-		Nonce:      nonce,
+		ProtocolID:   []byte(ProtocolID),
+		Version:      0x0001,
+		Flag:         packetType,
+		Nonce:        nonce,
 		AuthDataSize: 0,
 	}, nil
 }
@@ -206,8 +206,8 @@ func DecodePacketHeader(data []byte) (*PacketHeader, error) {
 	}
 
 	header := &PacketHeader{
-		ProtocolID:   make([]byte, 6),
-		Nonce:        make([]byte, 12),
+		ProtocolID: make([]byte, 6),
+		Nonce:      make([]byte, 12),
 	}
 
 	// Protocol ID (6 bytes)
@@ -313,11 +313,13 @@ func encodeHandshake(handshake *HandshakeData) []byte {
 // DecodePacket decodes a packet from bytes according to go-ethereum discv5 format.
 //
 // Packet format:
-//   masking-iv (16) || masked-header (23) || masked-authdata || message-data
+//
+//	masking-iv (16) || masked-header (23) || masked-authdata || message-data
 //
 // The header and authdata are masked using AES-CTR with:
-//   masking-key = localNodeID[:16]
-//   stream = AES-CTR(masking-key, masking-iv)
+//
+//	masking-key = localNodeID[:16]
+//	stream = AES-CTR(masking-key, masking-iv)
 //
 // This performs initial unmasking and parsing of the packet structure.
 // The message payload is not decrypted at this stage.
@@ -385,9 +387,9 @@ func DecodePacket(data []byte, localNodeID node.ID) (*Packet, error) {
 	// Build header data with UNMASKED header and authdata (for GCM/signatures)
 	// Format: IV (16) + unmasked-header (23) + unmasked-authdata (variable)
 	headerData := make([]byte, 0, authDataEnd)
-	headerData = append(headerData, data[0:16]...)      // IV
-	headerData = append(headerData, staticHeader...)    // unmasked header
-	headerData = append(headerData, authdata...)        // unmasked authdata
+	headerData = append(headerData, data[0:16]...)   // IV
+	headerData = append(headerData, staticHeader...) // unmasked header
+	headerData = append(headerData, authdata...)     // unmasked authdata
 
 	packet := &Packet{
 		PacketType: flag,

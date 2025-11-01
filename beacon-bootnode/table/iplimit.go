@@ -147,11 +147,11 @@ func (l *IPLimiter) GetTotalRejections() int {
 
 // GetStats returns statistics about IP usage.
 type IPStats struct {
-	UniqueIPs       int
-	TotalNodes      int
-	MaxNodesPerIP   int
-	Rejections      int
-	IPDistribution  map[string]int // IP -> node count
+	UniqueIPs      int
+	TotalNodes     int
+	MaxNodesPerIP  int
+	Rejections     int
+	IPDistribution map[string]int // IP -> node count
 }
 
 // GetStats returns detailed statistics about IP distribution.

@@ -35,11 +35,11 @@ type SessionKeys struct {
 // DeriveSessionKeys derives session keys from an ECDH shared secret.
 //
 // The key derivation follows the discv5 specification:
-//   1. Compute ECDH shared secret from ephemeral keys
-//   2. Use HKDF-SHA256 to derive three keys:
-//      - initiator-key (16 bytes)
-//      - recipient-key (16 bytes)
-//      - auth-resp-key (16 bytes)
+//  1. Compute ECDH shared secret from ephemeral keys
+//  2. Use HKDF-SHA256 to derive three keys:
+//     - initiator-key (16 bytes)
+//     - recipient-key (16 bytes)
+//     - auth-resp-key (16 bytes)
 //
 // Parameters:
 //   - secret: ECDH shared secret

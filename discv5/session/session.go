@@ -53,11 +53,11 @@ type Session struct {
 //   - remoteAddr: Network address of the remote peer
 //   - keys: Derived session keys
 //   - isInitiator: True if we initiated the session
-//   - lifetime: How long the session is valid (default 12 hours)
+//   - lifetime: How long the session is valid (default 30 minutes)
 //
 // Example:
 //
-//	session := NewSession(remoteID, remoteAddr, keys, true, 12*time.Hour)
+//	session := NewSession(remoteID, remoteAddr, keys, true, 30*time.Minute)
 func NewSession(
 	remoteID node.ID,
 	remoteAddr *net.UDPAddr,
@@ -107,6 +107,16 @@ func (s *Session) SetNode(n *node.Node) {
 	defer s.mu.Unlock()
 
 	s.Node = n
+}
+
+// UpdateAddr updates the remote address for this session.
+//
+// This is called when we detect that a node has moved to a different IP address.
+func (s *Session) UpdateAddr(addr *net.UDPAddr) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.RemoteAddr = addr
 }
 
 // GetNode returns the node reference for this session.

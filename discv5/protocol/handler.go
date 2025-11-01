@@ -24,11 +24,14 @@ type Transport interface {
 
 // PendingHandshake tracks a message waiting for handshake completion
 type PendingHandshake struct {
-	Message   Message
-	ToNode    *node.Node
-	ToAddr    *net.UDPAddr
-	ToNodeID  node.ID
-	CreatedAt time.Time
+	Message    Message
+	ToNode     *node.Node
+	ToAddr     *net.UDPAddr
+	ToNodeID   node.ID
+	CreatedAt  time.Time
+	LastRetry  time.Time // When we last sent a retry
+	RetryCount int       // Number of retries attempted
+	MaxRetries int       // Maximum number of retries (default 3)
 }
 
 // PendingChallenge tracks WHOAREYOU challenges we've sent.
@@ -93,26 +96,29 @@ type Handler struct {
 	mu sync.RWMutex
 
 	// Stats
-	packetsReceived      int
-	packetsSent          int
-	invalidPackets       int
-	filteredResponses    int
-	findNodeReceived     int
-	rejectedHandshakes   int
-	rejectedChallenges   int
-	evictedHandshakes    int
-	evictedChallenges    int
+	packetsReceived    int
+	packetsSent        int
+	invalidPackets     int
+	filteredResponses  int
+	findNodeReceived   int
+	rejectedHandshakes int
+	rejectedChallenges int
+	evictedHandshakes  int
+	evictedChallenges  int
 }
 
 const (
 	// pendingHandshakeTimeout is how long we keep pending handshakes before cleanup
-	pendingHandshakeTimeout = 30 * time.Second
+	pendingHandshakeTimeout = 10 * time.Second
 
 	// pendingChallengeTimeout is how long we keep pending challenges before cleanup
-	pendingChallengeTimeout = 30 * time.Second
+	pendingChallengeTimeout = 10 * time.Second
 
 	// cleanupInterval is how often we run the cleanup routine
-	cleanupInterval = 10 * time.Second
+	cleanupInterval = 5 * time.Second
+
+	// handshakeRetryInterval is how long to wait before retrying a handshake
+	handshakeRetryInterval = 2 * time.Second
 
 	// defaultMaxPendingHandshakes is the default maximum number of pending outgoing handshakes
 	defaultMaxPendingHandshakes = 2000
@@ -390,17 +396,37 @@ func (h *Handler) HandleIncomingPacket(data []byte, from *net.UDPAddr) error {
 
 // handleOrdinaryPacket handles an ordinary encrypted packet.
 func (h *Handler) handleOrdinaryPacket(packet *Packet, from *net.UDPAddr) error {
-	// Look up session for this address
-	sess := h.config.Sessions.GetByAddr(from)
+	// Extract source node ID from packet
+	if len(packet.SrcID) != 32 {
+		return fmt.Errorf("no source node ID in packet")
+	}
+	var srcNodeID node.ID
+	copy(srcNodeID[:], packet.SrcID)
+
+	// Look up session by node ID first (most efficient and handles IP changes)
+	sess := h.config.Sessions.Get(srcNodeID)
+
+	// If session exists, verify and update address if needed
+	if sess != nil {
+		// Check if the address has changed
+		if sess.RemoteAddr.String() != from.String() {
+			h.config.Logger.WithFields(logrus.Fields{
+				"nodeID":  srcNodeID.String()[:16],
+				"oldAddr": sess.RemoteAddr,
+				"newAddr": from,
+			}).Info("handler: node address changed, updating session")
+
+			// Update the session's remote address
+			sess.UpdateAddr(from)
+		}
+	} else {
+		// No session by node ID, try lookup by address (slower fallback)
+		sess = h.config.Sessions.GetByAddr(from)
+	}
+
 	if sess == nil {
 		// No session exists, send WHOAREYOU challenge
-		// Extract dest node ID from packet srcID (sender becomes receiver of WHOAREYOU)
-		if len(packet.SrcID) != 32 {
-			return fmt.Errorf("no source node ID in packet")
-		}
-		var destNodeID node.ID
-		copy(destNodeID[:], packet.SrcID)
-		return h.sendWHOAREYOU(from, destNodeID)
+		return h.sendWHOAREYOU(from, srcNodeID)
 	}
 
 	// Decrypt message using session key
@@ -412,8 +438,16 @@ func (h *Handler) handleOrdinaryPacket(packet *Packet, from *net.UDPAddr) error 
 		packet.Message,
 	)
 	if err != nil {
-		// Session might be expired, send WHOAREYOU
-		// Extract dest node ID from packet srcID
+		// Decryption failed - session is corrupted/expired
+		// Delete the session immediately to force a new handshake
+		h.config.Sessions.Delete(sess.RemoteID)
+		h.config.Logger.WithFields(logrus.Fields{
+			"nodeID": sess.RemoteID.String()[:16],
+			"addr":   from,
+			"error":  err,
+		}).Debug("handler: decryption failed, deleted session and sending WHOAREYOU")
+
+		// Extract dest node ID from packet srcID and send WHOAREYOU
 		if len(packet.SrcID) != 32 {
 			return fmt.Errorf("no source node ID in packet")
 		}
@@ -475,7 +509,64 @@ func (h *Handler) handleWHOAREYOUPacket(packet *Packet, from *net.UDPAddr) error
 	h.mu.Unlock()
 
 	if pending == nil {
-		return fmt.Errorf("no pending handshake for %s", from)
+		// No pending handshake - this WHOAREYOU is unexpected
+		// This can happen when:
+		// 1. Remote's session expired but ours didn't (asymmetric expiry)
+		// 2. Remote restarted and lost their session
+		// 3. Remote had a decryption failure and deleted their session
+		//
+		// We sent an encrypted packet with our stale session, but they don't have one.
+		// Solution: Look up the pending request, create a handshake with its stored message,
+		// complete the handshake, and replay the request with the same request ID.
+		sess := h.config.Sessions.GetByAddr(from)
+		if sess == nil {
+			// No session at all - truly unexpected WHOAREYOU
+			return fmt.Errorf("no pending handshake for %s", from)
+		}
+
+		// Look up pending request for this node to get the message to replay
+		pendingReq := h.requests.GetPendingRequestForNode(sess.RemoteID)
+		if pendingReq == nil {
+			// No pending request either - just delete stale session
+			h.config.Logger.WithFields(logrus.Fields{
+				"nodeID": sess.RemoteID.String()[:16],
+				"addr":   from,
+				"age":    sess.Age(),
+			}).Info("handler: received unexpected WHOAREYOU with no pending request, deleting stale session")
+			h.config.Sessions.Delete(sess.RemoteID)
+			return fmt.Errorf("no pending handshake or request for %s", from)
+		}
+
+		// Create pending handshake with the stored message from the pending request
+		// This will be sent after handshake completes, matching the existing pending request
+		pendingKey = makeHandshakeKey(sess.RemoteID, from)
+		pending = &PendingHandshake{
+			Message:    pendingReq.Message, // Use the original message with same request ID!
+			ToNode:     pendingReq.Node,    // Use node from pending request (not stale session)
+			ToAddr:     from,
+			ToNodeID:   sess.RemoteID,
+			CreatedAt:  time.Now(),
+			LastRetry:  time.Now(),
+			RetryCount: 0,
+			MaxRetries: 3,
+		}
+
+		h.mu.Lock()
+		h.pendingHandshakes[pendingKey] = pending
+		h.mu.Unlock()
+
+		// Delete the stale session - we'll create a new one during handshake
+		h.config.Sessions.Delete(sess.RemoteID)
+
+		// Continue processing the WHOAREYOU with our pending handshake
+		// After handshake completes, the message will be sent with the SAME request ID,
+		// and will match the existing pending request
+		h.config.Logger.WithFields(logrus.Fields{
+			"nodeID":  sess.RemoteID.String()[:16],
+			"addr":    from,
+			"age":     sess.Age(),
+			"msgType": pendingReq.Message.Type(),
+		}).Debug("handler: processing unexpected WHOAREYOU, will replay request after handshake")
 	}
 
 	remoteNodeID := pending.ToNodeID
@@ -576,7 +667,7 @@ func (h *Handler) handleWHOAREYOUPacket(packet *Packet, from *net.UDPAddr) error
 		from,
 		sessionKeys,
 		true, // we are the initiator
-		12*time.Hour,
+		h.config.Sessions.Lifetime(),
 	)
 
 	// Try to get the node from a previous session to set it
@@ -750,7 +841,7 @@ func (h *Handler) handleHandshakePacket(packet *Packet, from *net.UDPAddr) error
 		from,
 		sessionKeys,
 		false, // we are the recipient, not the initiator
-		12*time.Hour,
+		h.config.Sessions.Lifetime(),
 	)
 	h.config.Sessions.Put(sess)
 
@@ -1036,12 +1127,16 @@ func (h *Handler) SendMessage(msg Message, remoteID node.ID, to *net.UDPAddr, re
 		// Store pending message for handshake completion
 		// Include the node object if we have it (needed for handshake)
 		handshakeKey := makeHandshakeKey(remoteID, to)
+		now := time.Now()
 		pending := &PendingHandshake{
-			Message:   msg,
-			ToNode:    remoteNode,
-			ToAddr:    to,
-			ToNodeID:  remoteID,
-			CreatedAt: time.Now(),
+			Message:    msg,
+			ToNode:     remoteNode,
+			ToAddr:     to,
+			ToNodeID:   remoteID,
+			CreatedAt:  now,
+			LastRetry:  now,
+			RetryCount: 0,
+			MaxRetries: 3, // Retry up to 3 times before giving up
 		}
 
 		h.mu.Lock()
@@ -1232,18 +1327,26 @@ func (h *Handler) cleanupLoop() {
 }
 
 // cleanupExpiredEntries removes expired pending handshakes and challenges.
+// It also retries handshakes that haven't received a response.
 func (h *Handler) cleanupExpiredEntries() {
 	now := time.Now()
 
 	h.mu.Lock()
 
-	// Clean up expired pending handshakes
+	// Process pending handshakes - retry or remove expired
 	var toRemoveHandshakes []string
+	var toRetryHandshakes []*PendingHandshake
 	for key, pending := range h.pendingHandshakes {
+		// Check if handshake is truly expired (timeout or exceeded retries)
 		if now.Sub(pending.CreatedAt) > pendingHandshakeTimeout {
 			toRemoveHandshakes = append(toRemoveHandshakes, key)
+		} else if pending.RetryCount < pending.MaxRetries && now.Sub(pending.LastRetry) > handshakeRetryInterval {
+			// Handshake needs retry - not yet expired but no response
+			toRetryHandshakes = append(toRetryHandshakes, pending)
 		}
 	}
+
+	// Remove truly expired handshakes
 	for _, key := range toRemoveHandshakes {
 		pending := h.pendingHandshakes[key]
 		h.removePendingHandshake(key, pending)
@@ -1263,16 +1366,59 @@ func (h *Handler) cleanupExpiredEntries() {
 	}
 	expiredChallenges := len(toRemoveChallenges)
 
+	transport := h.transport
 	h.mu.Unlock()
+
+	// Retry handshakes that need it (outside the lock to avoid blocking)
+	retriedHandshakes := 0
+	if transport != nil {
+		for _, pending := range toRetryHandshakes {
+			// Encode and resend random packet
+			packetBytes, err := EncodeRandomPacket(h.config.LocalNode.ID(), pending.ToNodeID)
+			if err != nil {
+				h.config.Logger.WithFields(logrus.Fields{
+					"nodeID": pending.ToNodeID.String()[:16],
+					"error":  err,
+				}).Debug("handler: failed to encode retry random packet")
+				continue
+			}
+
+			if err := transport.SendTo(packetBytes, pending.ToAddr); err != nil {
+				h.config.Logger.WithFields(logrus.Fields{
+					"nodeID": pending.ToNodeID.String()[:16],
+					"addr":   pending.ToAddr,
+					"error":  err,
+				}).Debug("handler: failed to send retry random packet")
+				continue
+			}
+
+			// Update retry state
+			h.mu.Lock()
+			pending.LastRetry = now
+			pending.RetryCount++
+			h.packetsSent++
+			h.mu.Unlock()
+
+			retriedHandshakes++
+
+			h.config.Logger.WithFields(logrus.Fields{
+				"nodeID":     pending.ToNodeID.String()[:16],
+				"addr":       pending.ToAddr,
+				"retryCount": pending.RetryCount,
+				"maxRetries": pending.MaxRetries,
+			}).Debug("handler: retried handshake random packet")
+		}
+	}
 
 	// Clean up expired sessions
 	expiredSessions := h.config.Sessions.CleanupExpired()
 
-	if expiredHandshakes > 0 || expiredChallenges > 0 || expiredSessions > 0 {
+	if expiredHandshakes > 0 || expiredChallenges > 0 || expiredSessions > 0 || retriedHandshakes > 0 {
 		h.config.Logger.WithFields(logrus.Fields{
 			"expiredHandshakes": expiredHandshakes,
 			"expiredChallenges": expiredChallenges,
 			"expiredSessions":   expiredSessions,
+			"retriedHandshakes": retriedHandshakes,
 		}).Debug("handler: cleaned up expired entries")
 	}
 }
@@ -1298,8 +1444,8 @@ func (h *Handler) SendPing(n *node.Node) (<-chan *Response, error) {
 		ENRSeq:    h.config.LocalNode.Record().Seq(),
 	}
 
-	// Register pending request
-	respChan := h.requests.AddRequest(requestID, n.ID(), PingMsg)
+	// Register pending request (store message and node for replay if session becomes stale)
+	respChan := h.requests.AddRequest(requestID, n, ping)
 
 	// Send PING (pass node object so it's available for handshake if needed)
 	if err := h.SendMessage(ping, n.ID(), n.Addr(), n); err != nil {
@@ -1383,8 +1529,8 @@ func (h *Handler) SendFindNode(n *node.Node, distances []uint) (<-chan *Response
 		Distances: distances,
 	}
 
-	// Register pending request
-	respChan := h.requests.AddRequest(requestID, n.ID(), FindNodeMsg)
+	// Register pending request (store message and node for replay if session becomes stale)
+	respChan := h.requests.AddRequest(requestID, n, findNode)
 
 	// Send FINDNODE (pass node object so it's available for handshake if needed)
 	if err := h.SendMessage(findNode, n.ID(), n.Addr(), n); err != nil {

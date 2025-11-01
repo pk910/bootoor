@@ -10,23 +10,23 @@ import (
 
 // OverviewPageData contains data for the overview page
 type OverviewPageData struct {
-	Status          string
-	NetworkName     string
-	StartTime       time.Time
-	PeerID          string
-	BindAddress     string
-	LocalENR        string
-	LocalENRSeq     uint64
-	CurrentFork     string
-	CurrentDigest   string
-	OldDigests      []OldDigestInfo
-	GracePeriod     string
+	Status        string
+	NetworkName   string
+	StartTime     time.Time
+	PeerID        string
+	BindAddress   string
+	LocalENR      string
+	LocalENRSeq   uint64
+	CurrentFork   string
+	CurrentDigest string
+	OldDigests    []OldDigestInfo
+	GracePeriod   string
 
 	// Routing table stats
-	TableSize       int
-	BucketsFilled   int // Deprecated for flat table
-	ActiveNodes     int
-	InactiveNodes   int
+	TableSize     int
+	BucketsFilled int // Deprecated for flat table
+	ActiveNodes   int
+	InactiveNodes int
 
 	// Discovery stats
 	LookupsStarted   int

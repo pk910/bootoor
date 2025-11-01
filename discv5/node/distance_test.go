@@ -99,8 +99,8 @@ func TestCompare(t *testing.T) {
 
 func TestCloserTo(t *testing.T) {
 	target := ID{0x80}
-	closer := ID{0x81}   // Distance 0x01
-	farther := ID{0x90}  // Distance 0x10
+	closer := ID{0x81}  // Distance 0x01
+	farther := ID{0x90} // Distance 0x10
 
 	if !CloserTo(target, closer, farther) {
 		t.Error("CloserTo should return true when first is closer")

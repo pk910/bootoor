@@ -63,7 +63,7 @@ type Config struct {
 	// OnPongReceived is called when a PONG response is received
 	OnPongReceived protocol.OnPongReceivedCallback
 
-	// SessionLifetime is how long sessions remain valid (default 12 hours)
+	// SessionLifetime is how long sessions remain valid (default 30 minutes)
 	SessionLifetime time.Duration
 
 	// MaxSessions is the maximum number of cached sessions (default 1000)
@@ -78,7 +78,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		BindIP:          net.IPv4zero,
 		BindPort:        9000,
-		SessionLifetime: 12 * time.Hour,
+		SessionLifetime: 30 * time.Minute,
 		MaxSessions:     1000,
 	}
 }

@@ -330,7 +330,7 @@ func (s *Service) TalkReq(n *node.Node, protocolName string, request []byte) ([]
 	}
 
 	// Register pending request and send
-	respChan := s.handler.Requests().AddRequest(requestID, n.ID(), protocol.TalkReqMsg)
+	respChan := s.handler.Requests().AddRequest(requestID, n, talkReq)
 
 	if err := s.handler.SendMessage(talkReq, n.ID(), n.Addr(), n); err != nil {
 		s.handler.Requests().CancelRequest(requestID)

@@ -176,15 +176,15 @@ func TestLANAddressDetection(t *testing.T) {
 		ip    string
 		isLAN bool
 	}{
-		{"192.168.1.1", true},      // RFC1918
-		{"10.0.0.1", true},          // RFC1918
-		{"172.16.0.1", true},        // RFC1918
-		{"127.0.0.1", true},         // Loopback
-		{"8.8.8.8", false},          // Public
-		{"1.1.1.1", false},          // Public
-		{"::1", true},               // IPv6 loopback
-		{"fe80::1", true},           // IPv6 link-local
-		{"2001:db8::1", false},      // IPv6 global (doc range, but not private)
+		{"192.168.1.1", true},  // RFC1918
+		{"10.0.0.1", true},     // RFC1918
+		{"172.16.0.1", true},   // RFC1918
+		{"127.0.0.1", true},    // Loopback
+		{"8.8.8.8", false},     // Public
+		{"1.1.1.1", false},     // Public
+		{"::1", true},          // IPv6 loopback
+		{"fe80::1", true},      // IPv6 link-local
+		{"2001:db8::1", false}, // IPv6 global (doc range, but not private)
 	}
 
 	for _, tt := range tests {

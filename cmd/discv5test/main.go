@@ -388,12 +388,12 @@ func outputFindNodeHuman(nodes []*node.Node, nodesByDistance map[int][]*node.Nod
 // outputFindNodeJSON outputs findnode results in JSON format
 func outputFindNodeJSON(nodes []*node.Node, nodesByDistance map[int][]*node.Node) {
 	type NodeInfo struct {
-		PeerID     string `json:"peer_id"`
-		IP         string `json:"ip"`
-		Port       uint16 `json:"port"`
-		ForkDigest string `json:"fork_digest,omitempty"`
+		PeerID      string `json:"peer_id"`
+		IP          string `json:"ip"`
+		Port        uint16 `json:"port"`
+		ForkDigest  string `json:"fork_digest,omitempty"`
 		ForkVersion string `json:"fork_version,omitempty"`
-		Distance   int    `json:"distance"`
+		Distance    int    `json:"distance"`
 	}
 
 	nodeInfos := make([]NodeInfo, 0, len(nodes))
