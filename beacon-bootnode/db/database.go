@@ -28,14 +28,14 @@ type SqliteDatabaseConfig struct {
 // It provides both reader and writer connections with mutex protection for write operations
 // and embedded schema migration support using goose.
 type Database struct {
-	config          *SqliteDatabaseConfig
-	logger          logrus.FieldLogger
-	ReaderDb        *sqlx.DB   // Database connection for read operations
-	writerDb        *sqlx.DB   // Database connection for write operations
-	writerMutex     sync.Mutex // Protects write transactions from concurrent access
-	transactionCount int64      // Total number of transactions executed
-	queryCount      int64      // Total number of queries executed
-	statsMutex      sync.RWMutex // Protects stats access
+	config           *SqliteDatabaseConfig
+	logger           logrus.FieldLogger
+	ReaderDb         *sqlx.DB     // Database connection for read operations
+	writerDb         *sqlx.DB     // Database connection for write operations
+	writerMutex      sync.Mutex   // Protects write transactions from concurrent access
+	transactionCount int64        // Total number of transactions executed
+	queryCount       int64        // Total number of queries executed
+	statsMutex       sync.RWMutex // Protects stats access
 }
 
 // NewDatabase creates a new Database instance with the specified configuration and logger.
@@ -193,15 +193,15 @@ func (g *gooseLogger) Printf(format string, v ...interface{}) {
 
 // DatabaseStats contains statistics about database operations.
 type DatabaseStats struct {
-	TotalQueries     int64 // Total queries from SQL driver stats
-	Transactions     int64 // Total transactions executed
-	OpenConnections  int   // Current number of open connections
-	InUse            int   // Connections currently in use
-	Idle             int   // Connections currently idle
-	WaitCount        int64 // Total number of times waited for a connection
-	WaitDuration     time.Duration // Total time blocked waiting for connections
-	MaxIdleClosed    int64 // Total connections closed due to SetMaxIdleConns
-	MaxLifetimeClosed int64 // Total connections closed due to SetConnMaxLifetime
+	TotalQueries      int64         // Total queries from SQL driver stats
+	Transactions      int64         // Total transactions executed
+	OpenConnections   int           // Current number of open connections
+	InUse             int           // Connections currently in use
+	Idle              int           // Connections currently idle
+	WaitCount         int64         // Total number of times waited for a connection
+	WaitDuration      time.Duration // Total time blocked waiting for connections
+	MaxIdleClosed     int64         // Total connections closed due to SetMaxIdleConns
+	MaxLifetimeClosed int64         // Total connections closed due to SetConnMaxLifetime
 }
 
 // trackQuery increments the query counter.
