@@ -39,7 +39,7 @@ type PendingChallenge struct {
 	ToAddr        *net.UDPAddr
 	ToNodeID      node.ID
 	ChallengeData []byte
-	PacketBytes   []byte    // Raw WHOAREYOU packet bytes for resending
+	PacketBytes   []byte // Raw WHOAREYOU packet bytes for resending
 	CreatedAt     time.Time
 }
 
@@ -1357,13 +1357,13 @@ func (h *Handler) sendWHOAREYOU(to *net.UDPAddr, destNodeID node.ID, nonce []byt
 	}
 
 	h.config.Logger.WithFields(logrus.Fields{
-		"to":         to,
-		"nodeID":     destNodeID.String()[:16],
-		"enrSeq":     enrSeq,
-		"idNonce":    fmt.Sprintf("%x", idNonce),
-		"packetHex":  fmt.Sprintf("%x", packetBytes),
-		"maskingIV":  fmt.Sprintf("%x", maskingIV),
-		"nonce":      fmt.Sprintf("%x", nonce),
+		"to":        to,
+		"nodeID":    destNodeID.String()[:16],
+		"enrSeq":    enrSeq,
+		"idNonce":   fmt.Sprintf("%x", idNonce),
+		"packetHex": fmt.Sprintf("%x", packetBytes),
+		"maskingIV": fmt.Sprintf("%x", maskingIV),
+		"nonce":     fmt.Sprintf("%x", nonce),
 	}).Debug("handler: sent WHOAREYOU challenge")
 
 	return nil
