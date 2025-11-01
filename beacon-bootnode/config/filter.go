@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/binary"
 	"sync"
 	"time"
 
@@ -538,13 +537,6 @@ func CompatibilityMode(acceptedDigests []ForkDigest) enr.ENRFilter {
 		// Check if accepted
 		return digestMap[forkDigest]
 	}
-}
-
-// Helper to convert uint64 to bytes (big endian)
-func uint64ToBytes(v uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, v)
-	return b
 }
 
 // ForkFilterStats contains statistics about fork digest filtering.
