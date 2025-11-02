@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	dynssz "github.com/pk910/dynamic-ssz"
@@ -38,24 +40,6 @@ type Config struct {
 	GenesisDelay       uint64 `yaml:"GENESIS_DELAY"`
 	GenesisForkVersion string `yaml:"GENESIS_FORK_VERSION"`
 
-	// Fork versions
-	AltairForkVersion    string `yaml:"ALTAIR_FORK_VERSION"`
-	BellatrixForkVersion string `yaml:"BELLATRIX_FORK_VERSION"`
-	CapellaForkVersion   string `yaml:"CAPELLA_FORK_VERSION"`
-	DenebForkVersion     string `yaml:"DENEB_FORK_VERSION"`
-	ElectraForkVersion   string `yaml:"ELECTRA_FORK_VERSION"`
-	FuluForkVersion      string `yaml:"FULU_FORK_VERSION"`
-	GloasForkVersion     string `yaml:"GLOAS_FORK_VERSION"`
-
-	// Fork epochs
-	AltairForkEpoch    *uint64 `yaml:"ALTAIR_FORK_EPOCH"`
-	BellatrixForkEpoch *uint64 `yaml:"BELLATRIX_FORK_EPOCH"`
-	CapellaForkEpoch   *uint64 `yaml:"CAPELLA_FORK_EPOCH"`
-	DenebForkEpoch     *uint64 `yaml:"DENEB_FORK_EPOCH"`
-	ElectraForkEpoch   *uint64 `yaml:"ELECTRA_FORK_EPOCH"`
-	FuluForkEpoch      *uint64 `yaml:"FULU_FORK_EPOCH"`
-	GloasForkEpoch     *uint64 `yaml:"GLOAS_FORK_EPOCH"`
-
 	// Blob parameters
 	MaxBlobsPerBlockElectra uint64              `yaml:"MAX_BLOBS_PER_BLOCK_ELECTRA"`
 	BlobSchedule            []BlobScheduleEntry `yaml:"BLOB_SCHEDULE"`
@@ -67,35 +51,50 @@ type Config struct {
 	customGenesisTime     uint64
 	genesisValidatorsRoot [32]byte
 	genesisForkVersion    [4]byte
-	altairForkVersion     [4]byte
-	bellatrixForkVersion  [4]byte
-	capellaForkVersion    [4]byte
-	denebForkVersion      [4]byte
-	electraForkVersion    [4]byte
-	fuluForkVersion       [4]byte
-	gloasForkVersion      [4]byte
+
+	// Fork data - dynamically parsed from YAML, stored in chronological order
+	forks []forkDefinition
+
+	// Original YAML data for fields not explicitly handled
+	rawConfig map[string]interface{}
 }
 
 // forkDefinition represents a fork with its configuration.
 type forkDefinition struct {
 	name          string
-	versionStr    *string  // Pointer to the Config's version string field
-	epoch         *uint64  // Pointer to the Config's epoch field
-	parsedVersion *[4]byte // Pointer to the Config's parsed version field
+	epoch         uint64
+	versionStr    string
+	parsedVersion [4]byte
 }
 
-// getForks returns all forks in chronological order (genesis first, latest last).
+// getForks returns all forks in chronological order.
+// Forks are sorted by epoch (ascending), then alphabetically by name for equal epochs.
+// EIP-prefixed forks come after named forks within the same epoch.
 // This is the single source of truth for fork ordering in the codebase.
 func (c *Config) getForks() []forkDefinition {
-	return []forkDefinition{
-		{name: "Altair", versionStr: &c.AltairForkVersion, epoch: c.AltairForkEpoch, parsedVersion: &c.altairForkVersion},
-		{name: "Bellatrix", versionStr: &c.BellatrixForkVersion, epoch: c.BellatrixForkEpoch, parsedVersion: &c.bellatrixForkVersion},
-		{name: "Capella", versionStr: &c.CapellaForkVersion, epoch: c.CapellaForkEpoch, parsedVersion: &c.capellaForkVersion},
-		{name: "Deneb", versionStr: &c.DenebForkVersion, epoch: c.DenebForkEpoch, parsedVersion: &c.denebForkVersion},
-		{name: "Electra", versionStr: &c.ElectraForkVersion, epoch: c.ElectraForkEpoch, parsedVersion: &c.electraForkVersion},
-		{name: "Fulu", versionStr: &c.FuluForkVersion, epoch: c.FuluForkEpoch, parsedVersion: &c.fuluForkVersion},
-		{name: "Gloas", versionStr: &c.GloasForkVersion, epoch: c.GloasForkEpoch, parsedVersion: &c.gloasForkVersion},
+	return c.forks
+}
+
+// GetForkEpoch returns the epoch for a given fork name.
+// Returns nil if the fork is not defined.
+func (c *Config) GetForkEpoch(forkName string) *uint64 {
+	for i := range c.forks {
+		if c.forks[i].name == forkName {
+			return &c.forks[i].epoch
+		}
 	}
+	return nil
+}
+
+// GetForkVersion returns the fork version bytes for a given fork name.
+// Returns zero bytes if the fork is not defined.
+func (c *Config) GetForkVersion(forkName string) [4]byte {
+	for i := range c.forks {
+		if c.forks[i].name == forkName {
+			return c.forks[i].parsedVersion
+		}
+	}
+	return [4]byte{}
 }
 
 // ForkDigest represents a 4-byte fork digest.
@@ -120,9 +119,23 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	// First parse as map to extract fork data dynamically
+	var rawConfig map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse config as map: %w", err)
+	}
+
+	// Then parse into struct for known fields
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	cfg.rawConfig = rawConfig
+
+	// Extract fork data dynamically from the map
+	if err := cfg.extractForkData(rawConfig); err != nil {
+		return nil, fmt.Errorf("failed to extract fork data: %w", err)
 	}
 
 	// Parse hex values (GenesisValidatorsRoot is optional, set via SetGenesisValidatorsRoot)
@@ -161,6 +174,199 @@ func (c *Config) GetGenesisTime() uint64 {
 	return c.MinGenesisTime + c.GenesisDelay
 }
 
+// extractForkData dynamically extracts fork information from the raw YAML map.
+// It looks for keys matching the pattern *_FORK_EPOCH and *_FORK_VERSION.
+func (c *Config) extractForkData(rawConfig map[string]interface{}) error {
+	// Temporary maps to collect fork data
+	forkEpochs := make(map[string]uint64)
+	forkVersions := make(map[string]string)
+
+	// Extract fork data from YAML
+	for key, value := range rawConfig {
+		if strings.HasSuffix(key, "_FORK_EPOCH") {
+			// Extract fork name (e.g., "ALTAIR_FORK_EPOCH" -> "Altair")
+			forkNameUpper := strings.TrimSuffix(key, "_FORK_EPOCH")
+			forkName := toTitleCase(forkNameUpper)
+
+			// Convert to uint64
+			var epoch uint64
+			switch v := value.(type) {
+			case int:
+				epoch = uint64(v)
+			case int64:
+				epoch = uint64(v)
+			case uint64:
+				epoch = v
+			case float64:
+				epoch = uint64(v)
+			default:
+				continue // Skip if not a number
+			}
+
+			forkEpochs[forkName] = epoch
+		} else if strings.HasSuffix(key, "_FORK_VERSION") && key != "GENESIS_FORK_VERSION" {
+			// Extract fork name (e.g., "ALTAIR_FORK_VERSION" -> "Altair")
+			forkNameUpper := strings.TrimSuffix(key, "_FORK_VERSION")
+			forkName := toTitleCase(forkNameUpper)
+
+			// Convert to string (handle both string and numeric hex values)
+			var versionStr string
+			switch v := value.(type) {
+			case string:
+				versionStr = v
+			case int:
+				versionStr = fmt.Sprintf("0x%08x", v)
+			case int64:
+				versionStr = fmt.Sprintf("0x%08x", v)
+			case uint64:
+				versionStr = fmt.Sprintf("0x%08x", v)
+			default:
+				continue // Skip if not a recognized type
+			}
+
+			forkVersions[forkName] = versionStr
+		}
+	}
+
+	// Ensure we have both epoch and version for each fork
+	for forkName := range forkEpochs {
+		if _, ok := forkVersions[forkName]; !ok {
+			return fmt.Errorf("fork %s has epoch but no version", forkName)
+		}
+	}
+	for forkName := range forkVersions {
+		if _, ok := forkEpochs[forkName]; !ok {
+			return fmt.Errorf("fork %s has version but no epoch", forkName)
+		}
+	}
+
+	// Build forks list sorted by epoch (ascending), then by name
+	c.forks = []forkDefinition{}
+
+	// Collect all fork definitions
+	for forkName := range forkEpochs {
+		c.forks = append(c.forks, forkDefinition{
+			name:       forkName,
+			epoch:      forkEpochs[forkName],
+			versionStr: forkVersions[forkName],
+		})
+	}
+
+	// Sort the forks
+	c.sortForks()
+
+	// Add BPO entries to the fork list
+	// BPOs are blob parameter override entries that act like mini-forks
+	if err := c.addBPOForks(); err != nil {
+		return err
+	}
+
+	// Sort the forks again
+	c.sortForks()
+
+	return nil
+}
+
+// addBPOForks adds BPO (Blob Parameter Override) entries to the fork list.
+// Each BPO entry is treated as a fork variant with modified blob parameters.
+func (c *Config) addBPOForks() error {
+	// Check if we have Fulu fork (BPOs only apply from Fulu onwards)
+	var fuluEpoch *uint64
+	for i := range c.forks {
+		if c.forks[i].name == "Fulu" {
+			fuluEpoch = &c.forks[i].epoch
+			break
+		}
+	}
+
+	if fuluEpoch == nil || *fuluEpoch == math.MaxUint64 {
+		return nil // No Fulu fork, no BPOs to add
+	}
+
+	// Add each BPO entry as a fork
+	for i, blobEntry := range c.BlobSchedule {
+		if blobEntry.Epoch >= *fuluEpoch {
+			// Find which fork is active at this BPO's epoch
+			// IMPORTANT: Skip other BPOs, only consider real forks (named/EIP forks)
+			var bpoForkVersion [4]byte
+			var bpoVersionStr string
+
+			// Search backwards through forks to find the active one
+			for j := len(c.forks) - 1; j >= 0; j-- {
+				// Skip BPO entries - we only want real fork versions
+				if strings.HasPrefix(c.forks[j].name, "BPO-") {
+					continue
+				}
+
+				if c.forks[j].epoch <= blobEntry.Epoch {
+					bpoForkVersion = c.forks[j].parsedVersion
+					bpoVersionStr = c.forks[j].versionStr
+					break
+				}
+			}
+
+			// Add BPO as a fork entry
+			c.forks = append(c.forks, forkDefinition{
+				name:          fmt.Sprintf("BPO-%d", i+1),
+				epoch:         blobEntry.Epoch,
+				versionStr:    bpoVersionStr,
+				parsedVersion: bpoForkVersion,
+			})
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) sortForks() {
+	// Sort: by epoch (ascending), then by name for equal epochs
+	// EIP* and BPO* forks go to the end within the same epoch
+	sort.Slice(c.forks, func(i, j int) bool {
+		// First sort by epoch
+		if c.forks[i].epoch != c.forks[j].epoch {
+			return c.forks[i].epoch < c.forks[j].epoch
+		}
+
+		// For equal epochs, determine order by type:
+		// 1. Named forks (not starting with "EIP" or "BPO")
+		// 2. EIP forks (starting with "EIP")
+		// 3. BPO entries (starting with "BPO")
+
+		isBPO_i := strings.HasPrefix(c.forks[i].name, "BPO-")
+		isBPO_j := strings.HasPrefix(c.forks[j].name, "BPO-")
+		isEIP_i := strings.HasPrefix(c.forks[i].name, "EIP")
+		isEIP_j := strings.HasPrefix(c.forks[j].name, "EIP")
+
+		// If one is BPO and other is not, BPO comes last
+		if isBPO_i != isBPO_j {
+			return !isBPO_i
+		}
+
+		// If one is EIP and other is not (and neither is BPO), EIP comes after named fork
+		if !isBPO_i && !isBPO_j && isEIP_i != isEIP_j {
+			return !isEIP_i
+		}
+
+		// Otherwise, sort alphabetically
+		return c.forks[i].name < c.forks[j].name
+	})
+}
+
+// toTitleCase converts "ALTAIR" to "Altair", "EIP1234" to "EIP1234"
+func toTitleCase(s string) string {
+	if s == "" {
+		return s
+	}
+
+	// Special case: if it starts with EIP, keep it all uppercase for the prefix
+	if strings.HasPrefix(s, "EIP") {
+		return s
+	}
+
+	// Otherwise: first letter uppercase, rest lowercase
+	return strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
+}
+
 // parseHexValues parses hex string values into byte arrays.
 func (c *Config) parseHexValues() error {
 	var err error
@@ -171,12 +377,12 @@ func (c *Config) parseHexValues() error {
 		return fmt.Errorf("invalid genesis fork version: %w", err)
 	}
 
-	// Parse all other fork versions dynamically
-	for _, fork := range c.getForks() {
-		if *fork.versionStr != "" {
-			*fork.parsedVersion, err = hexToBytes4(*fork.versionStr)
+	// Parse all fork versions dynamically
+	for i := range c.forks {
+		if c.forks[i].versionStr != "" {
+			c.forks[i].parsedVersion, err = hexToBytes4(c.forks[i].versionStr)
 			if err != nil {
-				return fmt.Errorf("invalid %s fork version: %w", fork.name, err)
+				return fmt.Errorf("invalid %s fork version: %w", c.forks[i].name, err)
 			}
 		}
 	}
@@ -190,8 +396,8 @@ func (c *Config) GetForkVersionAtEpoch(epoch uint64) [4]byte {
 	forks := c.getForks()
 	for i := len(forks) - 1; i >= 0; i-- {
 		fork := forks[i]
-		if fork.epoch != nil && epoch >= *fork.epoch {
-			return *fork.parsedVersion
+		if epoch >= fork.epoch {
+			return fork.parsedVersion
 		}
 	}
 	// Default to genesis fork
@@ -204,7 +410,7 @@ func (c *Config) GetForkNameAtEpoch(epoch uint64) string {
 	forks := c.getForks()
 	for i := len(forks) - 1; i >= 0; i-- {
 		fork := forks[i]
-		if fork.epoch != nil && epoch >= *fork.epoch {
+		if epoch >= fork.epoch {
 			return fork.name
 		}
 	}
@@ -215,15 +421,17 @@ func (c *Config) GetForkNameAtEpoch(epoch uint64) string {
 // GetBlobParamsForEpoch returns the blob parameters for a given epoch (Fulu+).
 // Returns nil if not in Fulu fork or no blob schedule applies.
 func (c *Config) GetBlobParamsForEpoch(epoch uint64) *BlobScheduleEntry {
-	if c.FuluForkEpoch == nil || epoch < *c.FuluForkEpoch {
+	fuluEpoch := c.GetForkEpoch("Fulu")
+	if fuluEpoch == nil || epoch < *fuluEpoch {
 		return nil
 	}
 
 	// Start with Electra's max blobs
 	var currentBlobParams *BlobScheduleEntry
-	if c.ElectraForkEpoch != nil {
+	electraEpoch := c.GetForkEpoch("Electra")
+	if electraEpoch != nil {
 		currentBlobParams = &BlobScheduleEntry{
-			Epoch:            *c.ElectraForkEpoch,
+			Epoch:            *electraEpoch,
 			MaxBlobsPerBlock: c.MaxBlobsPerBlockElectra,
 		}
 	}
@@ -358,27 +566,26 @@ func (c *Config) GetPreviousForkDigest() ForkDigest {
 	}
 	currentEpoch := uint64(GetCurrentEpoch(genesisTime, currentTime, secondsPerSlot, slotsPerEpoch))
 
-	// Find the fork before the current one by iterating through forks in reverse order
+	// Find the fork before the current one by iterating through forks in forward order
 	forks := c.getForks()
+	var currentFork *forkDefinition
 	var previousFork *forkDefinition
 
-	for i := len(forks) - 1; i >= 0; i-- {
+	for i := 0; i < len(forks); i++ {
 		fork := forks[i]
-		if fork.epoch != nil && currentEpoch >= *fork.epoch {
-			// Found the current fork, return the previous one
-			if previousFork != nil && previousFork.epoch != nil {
-				return c.GetForkDigest(*previousFork.parsedVersion, nil)
-			}
-			// No previous fork, return genesis
-			return c.GetGenesisForkDigest()
-		}
-		// Only remember forks that are scheduled
-		if fork.epoch != nil {
-			previousFork = &fork
+		if currentEpoch >= fork.epoch {
+			// This fork is active, remember it as current
+			previousFork = currentFork // The last current becomes previous
+			currentFork = &forks[i]    // This is now current
 		}
 	}
 
-	// We're in Phase0, no previous fork
+	// Return the previous fork if it exists
+	if previousFork != nil {
+		return c.GetForkDigest(previousFork.parsedVersion, nil)
+	}
+
+	// No previous fork, return genesis
 	return c.GetGenesisForkDigest()
 }
 
@@ -402,27 +609,26 @@ func (c *Config) GetPreviousForkName() string {
 	}
 	currentEpoch := uint64(GetCurrentEpoch(genesisTime, currentTime, secondsPerSlot, slotsPerEpoch))
 
-	// Find the fork before the current one by iterating through forks in reverse order
+	// Find the fork before the current one by iterating through forks in forward order
 	forks := c.getForks()
+	var currentFork *forkDefinition
 	var previousFork *forkDefinition
 
-	for i := len(forks) - 1; i >= 0; i-- {
+	for i := 0; i < len(forks); i++ {
 		fork := forks[i]
-		if fork.epoch != nil && currentEpoch >= *fork.epoch {
-			// Found the current fork, return the previous one
-			if previousFork != nil {
-				return previousFork.name
-			}
-			// No previous fork, return Phase0
-			return "Phase0"
-		}
-		// Only remember forks that are scheduled
-		if fork.epoch != nil {
-			previousFork = &fork
+		if currentEpoch >= fork.epoch {
+			// This fork is active, remember it as current
+			previousFork = currentFork // The last current becomes previous
+			currentFork = &forks[i]    // This is now current
 		}
 	}
 
-	// We're in Phase0, no previous fork
+	// Return the previous fork name if it exists
+	if previousFork != nil {
+		return previousFork.name
+	}
+
+	// No previous fork, return Phase0
 	return "Phase0"
 }
 
@@ -437,8 +643,8 @@ func (c *Config) getFallbackForkDigest() ForkDigest {
 	forks := c.getForks()
 	for i := len(forks) - 1; i >= 0; i-- {
 		fork := forks[i]
-		if fork.epoch != nil && *fork.epoch != farFutureEpoch {
-			return c.GetForkDigest(*fork.parsedVersion, nil)
+		if fork.epoch != farFutureEpoch {
+			return c.GetForkDigest(fork.parsedVersion, nil)
 		}
 	}
 
@@ -465,19 +671,12 @@ func (c *Config) GetAllForkDigests() []ForkDigest {
 	// Genesis (epoch 0) - use genesis fork version
 	digests = append(digests, c.GetForkDigest(c.genesisForkVersion, nil))
 
-	// All forks - use their specific fork versions
+	// All forks (including BPOs) - use their specific fork versions
 	for _, fork := range c.getForks() {
-		if fork.epoch != nil {
-			digests = append(digests, c.GetForkDigest(*fork.parsedVersion, nil))
-
-			// Special handling for Fulu fork with blob schedules (BPO)
-			if fork.name == "Fulu" {
-				for _, blobEntry := range c.BlobSchedule {
-					if blobEntry.Epoch >= *fork.epoch {
-						digests = append(digests, c.GetForkDigest(*fork.parsedVersion, &blobEntry))
-					}
-				}
-			}
+		if fork.epoch != math.MaxUint64 {
+			// Get blob parameters active at this fork's epoch (if any)
+			blobParams := c.GetBlobParamsForEpoch(fork.epoch)
+			digests = append(digests, c.GetForkDigest(fork.parsedVersion, blobParams))
 		}
 	}
 
@@ -488,35 +687,28 @@ func (c *Config) GetAllForkDigests() []ForkDigest {
 func (c *Config) GetAllForkDigestInfos() []ForkDigestInfo {
 	var infos []ForkDigestInfo
 
-	// Helper to add digest info for a specific fork version
-	addDigestInfo := func(name string, forkVersion [4]byte, epoch uint64, blobParams *BlobScheduleEntry) {
-		digest := c.GetForkDigest(forkVersion, blobParams)
+	// Add Genesis (epoch 0)
+	infos = append(infos, ForkDigestInfo{
+		Digest:      c.GetForkDigest(c.genesisForkVersion, nil),
+		Name:        "Phase0/Genesis",
+		Epoch:       0,
+		BlobParams:  nil,
+		ForkVersion: c.genesisForkVersion,
+	})
 
-		infos = append(infos, ForkDigestInfo{
-			Digest:      digest,
-			Name:        name,
-			Epoch:       epoch,
-			BlobParams:  blobParams,
-			ForkVersion: forkVersion,
-		})
-	}
-
-	// Genesis (epoch 0) - use genesis fork version
-	addDigestInfo("Phase0/Genesis", c.genesisForkVersion, 0, nil)
-
-	// All forks - use their specific fork versions
+	// Add all forks (including BPOs) - they're already in the correct order
 	for _, fork := range c.getForks() {
-		if fork.epoch != nil {
-			addDigestInfo(fork.name, *fork.parsedVersion, *fork.epoch, nil)
+		if fork.epoch != math.MaxUint64 {
+			// Get blob parameters active at this fork's epoch (if any)
+			blobParams := c.GetBlobParamsForEpoch(fork.epoch)
 
-			// Special handling for Fulu fork with blob schedules (BPO)
-			if fork.name == "Fulu" {
-				for i, blobEntry := range c.BlobSchedule {
-					if blobEntry.Epoch >= *fork.epoch {
-						addDigestInfo(fmt.Sprintf("BPO-%d", i+1), *fork.parsedVersion, blobEntry.Epoch, &blobEntry)
-					}
-				}
-			}
+			infos = append(infos, ForkDigestInfo{
+				Digest:      c.GetForkDigest(fork.parsedVersion, blobParams),
+				Name:        fork.name,
+				Epoch:       fork.epoch,
+				BlobParams:  blobParams,
+				ForkVersion: fork.parsedVersion,
+			})
 		}
 	}
 
