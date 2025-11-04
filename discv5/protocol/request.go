@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 

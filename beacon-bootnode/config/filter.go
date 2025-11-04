@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 )
 
 // DefaultGracePeriod is the default time to keep nodes with old fork digests.

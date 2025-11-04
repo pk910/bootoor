@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ethpandaops/bootnodoor/discv5"
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 

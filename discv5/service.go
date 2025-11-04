@@ -14,11 +14,11 @@ import (
 	"sync"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/ethpandaops/bootnodoor/discv5/protocol"
 	"github.com/ethpandaops/bootnodoor/discv5/session"
-	"github.com/ethpandaops/bootnodoor/discv5/transport"
+	"github.com/ethpandaops/bootnodoor/transport"
 	"github.com/sirupsen/logrus"
 )
 

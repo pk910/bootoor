@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ethpandaops/bootnodoor/beacon-bootnode/db"
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"

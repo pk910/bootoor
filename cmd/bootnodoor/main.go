@@ -20,7 +20,7 @@ import (
 	"github.com/ethpandaops/bootnodoor/beacon-bootnode/config"
 	"github.com/ethpandaops/bootnodoor/beacon-bootnode/db"
 	"github.com/ethpandaops/bootnodoor/beacon-bootnode/nodedb"
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/ethpandaops/bootnodoor/webui"
 	"github.com/ethpandaops/bootnodoor/webui/types"

@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/ethpandaops/bootnodoor/beacon-bootnode/table"
-	"github.com/ethpandaops/bootnodoor/discv5/enr"
+	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/ethpandaops/bootnodoor/discv5/protocol"
 	"github.com/sirupsen/logrus"
