@@ -180,7 +180,7 @@ type ENRResponse struct {
 	ReplyTok []byte
 
 	// Record is the sender's ENR record
-	Record enr.Record
+	Record *enr.Record
 
 	// Rest allows forward compatibility
 	Rest []rlp.RawValue `rlp:"tail"`

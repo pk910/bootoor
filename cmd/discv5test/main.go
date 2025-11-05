@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -15,13 +16,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ethpandaops/bootnodoor/discv5"
-	"github.com/ethpandaops/bootnodoor/enr"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
+	"github.com/ethpandaops/bootnodoor/enr"
 )
 
 var (
 	// Global flags
 	jsonOutput bool
+	verbose    bool
 	timeout    int
 	bindAddr   string
 	bindPort   int
@@ -69,8 +71,13 @@ Example:
 )
 
 func init() {
+	// Suppress all logging by default
+	logrus.SetOutput(io.Discard)
+	logrus.SetLevel(logrus.PanicLevel)
+
 	// Global flags
 	rootCmd.PersistentFlags().BoolVarP(&jsonOutput, "json", "j", false, "Output in JSON format")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging output")
 	rootCmd.PersistentFlags().IntVarP(&timeout, "timeout", "t", 5, "Request timeout in seconds")
 	rootCmd.PersistentFlags().StringVar(&bindAddr, "bind-addr", "0.0.0.0", "IP address to bind listener to")
 	rootCmd.PersistentFlags().IntVar(&bindPort, "bind-port", 9000, "UDP port to bind listener to")
@@ -258,9 +265,19 @@ func createTempService() (*discv5.Service, error) {
 		}
 	}
 
-	// Create logger (suppress output unless debug)
+	// Create logger based on verbose flag
 	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
+	if verbose {
+		logrus.SetOutput(os.Stderr)
+		logrus.SetLevel(logrus.InfoLevel)
+		logger.SetOutput(os.Stderr)
+		logger.SetLevel(logrus.InfoLevel)
+	} else {
+		logrus.SetOutput(io.Discard)
+		logrus.SetLevel(logrus.PanicLevel)
+		logger.SetOutput(io.Discard)
+		logger.SetLevel(logrus.PanicLevel)
+	}
 
 	// Create service config
 	cfg := discv5.DefaultConfig()

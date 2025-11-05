@@ -220,15 +220,15 @@ func (h *Handler) HandlePacket(data []byte, from *net.UDPAddr) error {
 	case *Ping:
 		return h.handlePing(fromNode, from, p, hash)
 	case *Pong:
-		return h.handlePong(fromNode, from, p, hash)
+		return h.handlePong(fromNode, from, p)
 	case *Findnode:
-		return h.handleFindnode(fromNode, from, p, hash)
+		return h.handleFindnode(fromNode, from, p)
 	case *Neighbors:
-		return h.handleNeighbors(fromNode, from, p, hash)
+		return h.handleNeighbors(fromNode, from, p)
 	case *ENRRequest:
 		return h.handleENRRequest(fromNode, from, p, hash)
 	case *ENRResponse:
-		return h.handleENRResponse(fromNode, from, p, hash)
+		return h.handleENRResponse(fromNode, from, p)
 	default:
 		h.incrementInvalidPackets()
 		return fmt.Errorf("unknown packet type")
@@ -261,11 +261,11 @@ func (h *Handler) handlePing(fromNode *node.Node, from *net.UDPAddr, ping *Ping,
 	}
 
 	// Send PONG response
-	return h.sendPong(fromNode, from, hash, ping.ENRSeq)
+	return h.sendPong(fromNode, from, hash)
 }
 
 // handlePong processes a PONG response.
-func (h *Handler) handlePong(fromNode *node.Node, from *net.UDPAddr, pong *Pong, hash []byte) error {
+func (h *Handler) handlePong(fromNode *node.Node, from *net.UDPAddr, pong *Pong) error {
 	logrus.WithFields(logrus.Fields{
 		"from":    from.String(),
 		"node_id": fmt.Sprintf("%x", fromNode.IDBytes()[:8]),
@@ -299,7 +299,7 @@ func (h *Handler) handlePong(fromNode *node.Node, from *net.UDPAddr, pong *Pong,
 }
 
 // handleFindnode processes a FINDNODE request.
-func (h *Handler) handleFindnode(fromNode *node.Node, from *net.UDPAddr, findnode *Findnode, hash []byte) error {
+func (h *Handler) handleFindnode(fromNode *node.Node, from *net.UDPAddr, findnode *Findnode) error {
 	logrus.WithFields(logrus.Fields{
 		"from":    from.String(),
 		"node_id": fmt.Sprintf("%x", fromNode.IDBytes()[:8]),
@@ -334,7 +334,7 @@ func (h *Handler) handleFindnode(fromNode *node.Node, from *net.UDPAddr, findnod
 }
 
 // handleNeighbors processes a NEIGHBORS response.
-func (h *Handler) handleNeighbors(fromNode *node.Node, from *net.UDPAddr, neighbors *Neighbors, hash []byte) error {
+func (h *Handler) handleNeighbors(fromNode *node.Node, from *net.UDPAddr, neighbors *Neighbors) error {
 	logrus.WithFields(logrus.Fields{
 		"from":       from.String(),
 		"node_id":    fmt.Sprintf("%x", fromNode.IDBytes()[:8]),
@@ -443,7 +443,7 @@ func (h *Handler) handleENRRequest(fromNode *node.Node, from *net.UDPAddr, req *
 }
 
 // handleENRResponse processes an ENRRESPONSE.
-func (h *Handler) handleENRResponse(fromNode *node.Node, from *net.UDPAddr, resp *ENRResponse, hash []byte) error {
+func (h *Handler) handleENRResponse(fromNode *node.Node, from *net.UDPAddr, resp *ENRResponse) error {
 	logrus.WithFields(logrus.Fields{
 		"from":    from.String(),
 		"node_id": fmt.Sprintf("%x", fromNode.IDBytes()[:8]),
@@ -451,12 +451,12 @@ func (h *Handler) handleENRResponse(fromNode *node.Node, from *net.UDPAddr, resp
 	}).Debug("Received ENRRESPONSE")
 
 	// Update node's ENR
-	fromNode.SetENR(&resp.Record)
+	fromNode.SetENR(resp.Record)
 
 	// Match to pending request
 	req := h.getPendingRequest(string(resp.ReplyTok))
 	if req != nil {
-		req.ResponseChan <- &resp.Record
+		req.ResponseChan <- resp.Record
 	}
 
 	return nil
@@ -502,6 +502,11 @@ func (h *Handler) Ping(n *node.Node) (*Pong, error) {
 	select {
 	case resp := <-req.ResponseChan:
 		if pong, ok := resp.(*Pong); ok {
+			// Wait for the remote node to ping us back and process our PONG response.
+			// This is critical for the bond handshake to complete on the remote side.
+			// Without this wait, subsequent FINDNODE/ENRREQUEST may be rejected as unbonded.
+			// Match go-ethereum's ensureBond behavior (respTimeout = 500ms).
+			time.Sleep(500 * time.Millisecond)
 			return pong, nil
 		}
 		return nil, fmt.Errorf("unexpected response type")
@@ -571,6 +576,14 @@ func (h *Handler) Findnode(n *node.Node, target []byte) ([]*node.Node, error) {
 
 // RequestENR sends an ENRREQUEST to a node.
 func (h *Handler) RequestENR(n *node.Node) (*enr.Record, error) {
+	// Check if node is bonded
+	if !n.IsBonded() {
+		// Establish bond first
+		if _, err := h.Ping(n); err != nil {
+			return nil, fmt.Errorf("failed to establish bond: %w", err)
+		}
+	}
+
 	// Build ENRREQUEST message
 	req := &ENRRequest{
 		Expiration: MakeExpiration(h.config.ExpirationWindow),
@@ -612,7 +625,7 @@ func (h *Handler) RequestENR(n *node.Node) (*enr.Record, error) {
 }
 
 // sendPong sends a PONG response.
-func (h *Handler) sendPong(to *node.Node, addr *net.UDPAddr, replyTok []byte, remoteENRSeq uint64) error {
+func (h *Handler) sendPong(to *node.Node, addr *net.UDPAddr, replyTok []byte) error {
 	pong := &Pong{
 		To:         NewEndpoint(addr, uint16(addr.Port)),
 		ReplyTok:   replyTok,
@@ -690,7 +703,7 @@ func (h *Handler) sendENRResponse(to *node.Node, addr *net.UDPAddr, replyTok []b
 
 	resp := &ENRResponse{
 		ReplyTok: replyTok,
-		Record:   *h.config.LocalENR,
+		Record:   h.config.LocalENR,
 	}
 
 	packet, _, err := Encode(h.config.PrivateKey, resp)
@@ -873,15 +886,15 @@ func (h *Handler) Stats() map[string]interface{} {
 	defer h.statsMu.RUnlock()
 
 	return map[string]interface{}{
-		"packets_received":          h.packetsReceived,
-		"packets_sent":              h.packetsSent,
-		"invalid_packets":           h.invalidPackets,
-		"expired_packets":           h.expiredPackets,
-		"unbonded_findnode":         h.unbondedFindnode,
-		"findnode_requests_recv":    h.findnodeRequestsRecv,
-		"findnode_responses_recv":   h.findnodeResponsesRecv,
-		"known_nodes":               len(h.nodes),
-		"pending_requests":          len(h.requests),
-		"pending_neighbors":         len(h.pendingNeighbors),
+		"packets_received":        h.packetsReceived,
+		"packets_sent":            h.packetsSent,
+		"invalid_packets":         h.invalidPackets,
+		"expired_packets":         h.expiredPackets,
+		"unbonded_findnode":       h.unbondedFindnode,
+		"findnode_requests_recv":  h.findnodeRequestsRecv,
+		"findnode_responses_recv": h.findnodeResponsesRecv,
+		"known_nodes":             len(h.nodes),
+		"pending_requests":        len(h.requests),
+		"pending_neighbors":       len(h.pendingNeighbors),
 	}
 }
