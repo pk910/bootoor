@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/ethpandaops/bootnodoor/discv5/crypto"
+	"github.com/ethpandaops/bootnodoor/crypto"
 	"github.com/ethpandaops/bootnodoor/discv5/node"
 )
 
