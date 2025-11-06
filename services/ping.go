@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	nodedb "github.com/ethpandaops/bootnodoor/nodes"
 	"github.com/ethpandaops/bootnodoor/discv4"
 	"github.com/ethpandaops/bootnodoor/discv5/protocol"
+	nodedb "github.com/ethpandaops/bootnodoor/nodes"
 	"github.com/sirupsen/logrus"
 )
 
@@ -388,10 +388,10 @@ func (ps *PingService) CheckProtocolSupportMultiple(nodes []*nodedb.Node) {
 	ps.logger.WithField("count", len(nodes)).Debug("checking protocol support for multiple nodes")
 
 	type result struct {
-		peerID       string
-		v4Supported  bool
-		v5Supported  bool
-		err          error
+		peerID      string
+		v4Supported bool
+		v5Supported bool
+		err         error
 	}
 
 	resultChan := make(chan result, len(nodes))
@@ -428,11 +428,11 @@ func (ps *PingService) CheckProtocolSupportMultiple(nodes []*nodedb.Node) {
 	}
 
 	ps.logger.WithFields(logrus.Fields{
-		"total":    len(nodes),
-		"v4Only":   v4Count,
-		"v5Only":   v5Count,
-		"both":     bothCount,
-		"none":     noneCount,
+		"total":  len(nodes),
+		"v4Only": v4Count,
+		"v5Only": v5Count,
+		"both":   bothCount,
+		"none":   noneCount,
 	}).Info("protocol support check batch complete")
 }
 

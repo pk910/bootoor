@@ -351,12 +351,12 @@ func runGetENR(cmd *cobra.Command, args []string) error {
 	// Output result
 	if jsonOutput {
 		result := map[string]interface{}{
-			"success":  true,
-			"node_id":  hex.EncodeToString(nodeID[:]),
-			"enr":      enrStr,
-			"seq":      record.Seq(),
-			"rtt_ms":   rtt.Milliseconds(),
-			"address":  targetNode.Addr().String(),
+			"success": true,
+			"node_id": hex.EncodeToString(nodeID[:]),
+			"enr":     enrStr,
+			"seq":     record.Seq(),
+			"rtt_ms":  rtt.Milliseconds(),
+			"address": targetNode.Addr().String(),
 		}
 
 		// Add IP if present

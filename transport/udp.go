@@ -51,7 +51,7 @@ type UDPTransport struct {
 	conn *net.UDPConn
 
 	// handlers is a list of packet handlers (tried in order)
-	handlers []PacketHandler
+	handlers   []PacketHandler
 	handlersMu sync.RWMutex
 
 	// logger for debug and error messages

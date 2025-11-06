@@ -17,9 +17,9 @@ import (
 // The signature is ECDSA over Keccak256(type || data)
 
 const (
-	macSize  = 32                      // Size of the MAC hash
-	sigSize  = crypto.SignatureLength  // Size of ECDSA signature (65 bytes)
-	headSize = macSize + sigSize       // Total header size (97 bytes)
+	macSize  = 32                     // Size of the MAC hash
+	sigSize  = crypto.SignatureLength // Size of ECDSA signature (65 bytes)
+	headSize = macSize + sigSize      // Total header size (97 bytes)
 )
 
 var (
@@ -51,7 +51,8 @@ var headSpace = make([]byte, headSize)
 //   - error: Any decoding error
 //
 // The packet structure is:
-//   [MAC 32][Signature 65][Type 1][RLP Data...]
+//
+//	[MAC 32][Signature 65][Type 1][RLP Data...]
 func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 	if len(input) < headSize+1 {
 		return nil, Pubkey{}, nil, ErrPacketTooSmall
@@ -111,7 +112,8 @@ func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 //   - error: Any encoding error
 //
 // The packet structure is:
-//   [MAC 32][Signature 65][Type 1][RLP Data...]
+//
+//	[MAC 32][Signature 65][Type 1][RLP Data...]
 func Encode(priv *ecdsa.PrivateKey, req Packet) (packet, hash []byte, err error) {
 	// Build packet: [headSpace][Type][RLP Data]
 	b := new(bytes.Buffer)

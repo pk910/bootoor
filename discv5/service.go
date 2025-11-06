@@ -254,7 +254,6 @@ func (s *Service) Sessions() *session.Cache {
 	return s.sessions
 }
 
-
 // Ping sends a PING request to a node and waits for a PONG response.
 //
 // Returns an error if the ping fails or times out.

@@ -80,8 +80,8 @@ type ipReport struct {
 	count       int
 	firstSeen   time.Time
 	lastSeen    time.Time
-	reporterIDs []string                // Track which peers reported this (for debugging)
-	reporterIPs map[string]int          // Track distinct reporter IPs -> count
+	reporterIDs []string       // Track which peers reported this (for debugging)
+	reporterIPs map[string]int // Track distinct reporter IPs -> count
 }
 
 // IPDiscoveryConfig contains configuration for IP discovery
@@ -383,10 +383,10 @@ func (ipd *IPDiscovery) checkConsensusForFamilyLocked(isIPv6 bool) {
 	distinctIPCount := len(maxReport.reporterIPs)
 	if distinctIPCount < ipd.minDistinctIPs {
 		ipd.logger.WithFields(logrus.Fields{
-			"family":       familyName,
-			"addr":         fmt.Sprintf("%s:%d", maxReport.ip.String(), maxReport.port),
-			"distinctIPs":  distinctIPCount,
-			"minDistinct":  ipd.minDistinctIPs,
+			"family":      familyName,
+			"addr":        fmt.Sprintf("%s:%d", maxReport.ip.String(), maxReport.port),
+			"distinctIPs": distinctIPCount,
+			"minDistinct": ipd.minDistinctIPs,
 		}).Debug("IP discovery: insufficient distinct reporter IPs")
 		return
 	}
@@ -402,14 +402,14 @@ func (ipd *IPDiscovery) checkConsensusForFamilyLocked(isIPv6 bool) {
 
 		if addrChanged {
 			ipd.logger.WithFields(logrus.Fields{
-				"family":       familyName,
-				"addr":         fmt.Sprintf("%s:%d", maxReport.ip.String(), maxReport.port),
-				"count":        maxReport.count,
-				"total":        totalCount,
-				"majority":     majority,
-				"threshold":    ipd.majorityThreshold,
-				"distinctIPs":  distinctIPCount,
-				"minDistinct":  ipd.minDistinctIPs,
+				"family":      familyName,
+				"addr":        fmt.Sprintf("%s:%d", maxReport.ip.String(), maxReport.port),
+				"count":       maxReport.count,
+				"total":       totalCount,
+				"majority":    majority,
+				"threshold":   ipd.majorityThreshold,
+				"distinctIPs": distinctIPCount,
+				"minDistinct": ipd.minDistinctIPs,
 			}).Info("IP discovery: consensus reached")
 
 			*currentConsensusIP = maxReport.ip

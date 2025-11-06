@@ -2,7 +2,6 @@ package nodes
 
 import (
 	"time"
-
 )
 
 // DefaultPingInterval is how often we PING nodes to check liveness.

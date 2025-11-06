@@ -10,8 +10,8 @@ import (
 // Genesis represents an Execution Layer genesis specification.
 // This is a minimal version focused on extracting metadata needed for bootnode operation.
 type Genesis struct {
-	Config    *ChainConfig       `json:"config"`
-	Timestamp uint64             `json:"timestamp,string"`
+	Config    *ChainConfig           `json:"config"`
+	Timestamp uint64                 `json:"timestamp,string"`
 	Alloc     map[string]interface{} `json:"alloc,omitempty"`
 }
 

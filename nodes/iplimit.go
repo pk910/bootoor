@@ -3,7 +3,6 @@ package nodes
 import (
 	"net"
 	"sync"
-
 )
 
 // DefaultMaxNodesPerIP is the default maximum nodes per IP address.

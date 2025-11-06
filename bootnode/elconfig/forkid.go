@@ -168,11 +168,11 @@ func (c *ChainConfig) extractForkData() {
 
 	// Special fields to exclude (not forks)
 	excludedFields := map[string]bool{
-		"chainId":                     true,
-		"terminalTotalDifficulty":     true,
+		"chainId":                       true,
+		"terminalTotalDifficulty":       true,
 		"terminalTotalDifficultyPassed": true,
-		"blobSchedule":                true,
-		"depositContractAddress":      true,
+		"blobSchedule":                  true,
+		"depositContractAddress":        true,
 	}
 
 	// Extract fork data from config map
@@ -261,7 +261,7 @@ func buildForkList(forks map[string]uint64) []forkEntry {
 
 // ForkInfo contains information about a fork activation.
 type ForkInfo struct {
-	Name      string // Fork name (e.g., "homestead", "shanghai")
+	Name      string  // Fork name (e.g., "homestead", "shanghai")
 	Block     *uint64 // Block number (nil for time-based forks)
 	Timestamp *uint64 // Timestamp (nil for block-based forks)
 }

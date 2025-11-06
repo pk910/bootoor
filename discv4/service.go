@@ -322,7 +322,6 @@ func (s *Service) LocalAddr() *net.UDPAddr {
 	return s.transport.LocalAddr()
 }
 
-
 // LocalNodeID returns the local node ID.
 func (s *Service) LocalNodeID() node.ID {
 	return node.PubkeyToID(&s.privateKey.PublicKey)

@@ -1,9 +1,7 @@
 package bootnode
 
 import (
-	"crypto/ecdsa"
 	"fmt"
-	"net"
 
 	v5node "github.com/ethpandaops/bootnodoor/discv5/node"
 	"github.com/ethpandaops/bootnodoor/enr"
@@ -90,65 +88,4 @@ func buildENR(cfg *Config) (*enr.Record, error) {
 	}
 
 	return record, nil
-}
-
-// updateENRAddresses updates the ENR with network addresses if needed.
-//
-// This is called when we want to update just the IP/port without changing other fields.
-func updateENRAddresses(node *v5node.Node, privKey *ecdsa.PrivateKey, ip net.IP, ip6 net.IP, port uint16) (*v5node.Node, error) {
-	currentRecord := node.Record()
-
-	// Check if update is needed
-	needsUpdate := false
-
-	currentIP := currentRecord.IP()
-	if ip != nil && (currentIP == nil || !currentIP.Equal(ip)) {
-		needsUpdate = true
-	}
-
-	currentIP6 := currentRecord.IP6()
-	if ip6 != nil && (currentIP6 == nil || !currentIP6.Equal(ip6)) {
-		needsUpdate = true
-	}
-
-	currentPort := currentRecord.UDP()
-	if port > 0 && currentPort != port {
-		needsUpdate = true
-	}
-
-	if !needsUpdate {
-		return node, nil
-	}
-
-	// Clone and update
-	newRecord, err := currentRecord.Clone()
-	if err != nil {
-		return nil, fmt.Errorf("failed to clone ENR: %w", err)
-	}
-
-	if ip != nil {
-		if ipv4 := ip.To4(); ipv4 != nil {
-			newRecord.Set("ip", ipv4)
-		}
-	}
-	if ip6 != nil {
-		if ipv6 := ip6.To16(); ipv6 != nil {
-			newRecord.Set("ip6", ipv6)
-		}
-	}
-	if port > 0 {
-		newRecord.Set("udp", port)
-		newRecord.Set("tcp", port)
-	}
-
-	// Increment sequence
-	newRecord.SetSeq(currentRecord.Seq() + 1)
-
-	// Re-sign
-	if err := newRecord.Sign(privKey); err != nil {
-		return nil, fmt.Errorf("failed to sign updated ENR: %w", err)
-	}
-
-	// Create new node
-	return v5node.New(newRecord)
 }

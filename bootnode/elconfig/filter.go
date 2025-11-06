@@ -112,8 +112,8 @@ func (f *ForkFilter) GetAllForkIDsWithNames(genesisTime uint64) []ForkIDWithName
 
 	// Collect all forks with their activation points
 	type forkWithValue struct {
-		name  string
-		value uint64
+		name   string
+		value  uint64
 		isTime bool
 	}
 

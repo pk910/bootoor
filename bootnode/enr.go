@@ -181,7 +181,6 @@ func (m *ENRManager) GetCLFilter() *clconfig.ForkDigestFilter {
 	return m.clFilter
 }
 
-
 // UpdateENRWithIP updates the local ENR with a new IPv4 address and UDP port.
 func (m *ENRManager) UpdateENRWithIP(ip net.IP, port uint16) error {
 	record := m.localNode.Record()

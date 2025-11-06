@@ -46,9 +46,9 @@ var (
 	bindPort int
 
 	// ENR configuration
-	enrIP     string
-	enrIP6    string
-	enrPort   int
+	enrIP   string
+	enrIP6  string
+	enrPort int
 
 	// Logging
 	logLevel string
@@ -294,9 +294,9 @@ func runBootnode(cmd *cobra.Command, args []string) error {
 		}
 
 		logger.WithFields(logrus.Fields{
-			"configName":           clConfig.ConfigName,
+			"configName":            clConfig.ConfigName,
 			"genesisValidatorsRoot": genesisValidatorsRoot,
-			"genesisTime":          clGenesisTime,
+			"genesisTime":           clGenesisTime,
 		}).Info("loaded CL config")
 
 		// Print CL forks with fork digests

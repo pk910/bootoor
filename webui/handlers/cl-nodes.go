@@ -13,21 +13,21 @@ import (
 
 // CLNodeData represents the data for a single CL node in the template.
 type CLNodeData struct {
-	PeerID          string
-	IP              string
-	Port            int
-	ENR             string
-	ENRSeq          uint64
-	FirstSeen       time.Time
-	LastSeen        time.Time
-	SuccessCount    int
-	FailureCount    int
-	IsAlive         bool
-	Score           float64
-	AvgRTT          time.Duration
-	ForkDigest      string
-	HasForkData     bool
-	IsCurrentFork   bool
+	PeerID        string
+	IP            string
+	Port          int
+	ENR           string
+	ENRSeq        uint64
+	FirstSeen     time.Time
+	LastSeen      time.Time
+	SuccessCount  int
+	FailureCount  int
+	IsAlive       bool
+	Score         float64
+	AvgRTT        time.Duration
+	ForkDigest    string
+	HasForkData   bool
+	IsCurrentFork bool
 }
 
 // CLNodesPageData represents the data for the CL nodes page.
