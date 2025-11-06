@@ -3,7 +3,7 @@ module github.com/ethpandaops/bootnodoor
 go 1.24.0
 
 require (
-	github.com/ethereum/go-ethereum v1.16.5
+	github.com/ethereum/go-ethereum v1.16.6
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jmoiron/sqlx v1.4.0
@@ -22,6 +22,7 @@ require (
 
 require (
 	github.com/OffchainLabs/hashtree v0.2.1-0.20250530191054-577f0b75c7f7 // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/casbin/govaluate v1.8.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
