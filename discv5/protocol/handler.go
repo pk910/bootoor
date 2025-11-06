@@ -390,7 +390,7 @@ func (h *Handler) HandleIncomingPacket(data []byte, from *net.UDPAddr) error {
 		h.config.Logger.WithFields(logrus.Fields{
 			"from":  from,
 			"error": err,
-		}).Debug("handler: invalid packet")
+		}).Trace("handler: invalid packet")
 		return fmt.Errorf("invalid packet: %w", err)
 	}
 

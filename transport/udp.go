@@ -243,7 +243,6 @@ func (t *UDPTransport) AddHandler(handler func(data []byte, from *net.UDPAddr) b
 	t.handlersMu.Lock()
 	defer t.handlersMu.Unlock()
 	t.handlers = append(t.handlers, PacketHandler(handler))
-	t.logger.Debug("transport: handler registered")
 }
 
 // SendTo sends a packet to the specified address.

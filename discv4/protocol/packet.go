@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/sirupsen/logrus"
 )
 
 // Packet structure:
@@ -66,12 +67,19 @@ func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 	// Verify MAC hash
 	shouldhash := crypto.Keccak256(input[macSize:])
 	if !bytes.Equal(hash, shouldhash) {
+		logrus.WithFields(logrus.Fields{
+			"got":      fmt.Sprintf("%x", hash[:8]),
+			"expected": fmt.Sprintf("%x", shouldhash[:8]),
+		}).Debug("discv4: bad hash")
 		return nil, Pubkey{}, nil, ErrBadHash
 	}
 
 	// Recover sender's public key from signature
 	fromKey, err := recoverNodeKey(crypto.Keccak256(input[headSize:]), sig)
 	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+		}).Debug("discv4: signature recovery failed")
 		return nil, fromKey, hash, fmt.Errorf("%w: %v", ErrBadSignature, err)
 	}
 
@@ -91,6 +99,9 @@ func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 	case ENRResponsePacket:
 		req = new(ENRResponse)
 	default:
+		logrus.WithFields(logrus.Fields{
+			"ptype": ptype,
+		}).Debug("discv4: unknown packet type")
 		return nil, fromKey, hash, fmt.Errorf("%w: %d", ErrUnknownPacket, ptype)
 	}
 
@@ -98,6 +109,9 @@ func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 	// Use NewStream for forward compatibility (allows trailing data)
 	s := rlp.NewStream(bytes.NewReader(sigdata[1:]), 0)
 	if err := s.Decode(req); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+		}).Debug("discv4: RLP decode error")
 		return nil, fromKey, hash, fmt.Errorf("rlp decode error: %w", err)
 	}
 

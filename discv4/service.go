@@ -132,19 +132,32 @@ func New(config *Config, transport Transport) (*Service, error) {
 
 // packetHandler is the packet handler function registered with the transport.
 // It wraps the protocol handler's HandlePacket method.
-func (s *Service) packetHandler(data []byte, from *net.UDPAddr) bool {
+func (s *Service) packetHandler(data []byte, from *net.UDPAddr) (accepted bool) {
+	// Recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.WithFields(logrus.Fields{
+				"from":  from,
+				"panic": r,
+				"stack": fmt.Sprintf("%v", r),
+			}).Error("discv4: PANIC in packetHandler!")
+			accepted = false
+		}
+	}()
+
 	// Try to handle as discv4 packet.
 	// The handler validates the packet signature and structure.
 	// Note: We don't pre-filter based on magic strings because a discv4
 	// packet (which has a random hash) could theoretically start with
 	// the bytes "discv5". We rely on cryptographic validation.
-	s.handler.HandlePacket(data, from)
+	err := s.handler.HandlePacket(data, from)
 
-	// Note: discv4.HandlePacket doesn't currently return an error.
-	// The handler internally validates and drops invalid packets.
-	// For now, we assume any packet that reaches here could be discv4.
-	// This means if both discv5 and discv4 reject a packet, discv4
-	// will be the last one to try (and silently drop it).
+	if err != nil {
+		// Could not handle as discv4, let other handlers try
+		return false
+	}
+
+	// Successfully handled as discv4
 	return true
 }
 

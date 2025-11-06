@@ -61,6 +61,9 @@ type Service struct {
 	elLookupService *services.LookupService // EL lookup service (may be nil if EL disabled)
 	clLookupService *services.LookupService // CL lookup service (may be nil if CL disabled)
 
+	// ENR request tracking (prevents duplicate requests)
+	pendingENRRequestsV4 sync.Map // map[node.ID]time.Time
+
 	// Lifecycle
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -499,14 +502,16 @@ func (s *Service) maintenanceLoop() {
 	tableMaintenance := time.NewTicker(5 * time.Minute)
 	alivenessCheck := time.NewTicker(s.config.PingInterval)
 	randomWalk := time.NewTicker(30 * time.Second)
-	supportCheck := time.NewTicker(30 * time.Minute)  // Check protocol support every 30 minutes
-	badNodesCleanup := time.NewTicker(24 * time.Hour) // Cleanup bad nodes once per day
+	supportCheck := time.NewTicker(30 * time.Minute)     // Check protocol support every 30 minutes
+	badNodesCleanup := time.NewTicker(24 * time.Hour)    // Cleanup bad nodes once per day
+	enrRequestCleanup := time.NewTicker(1 * time.Minute) // Cleanup stale ENR requests every minute
 
 	defer tableMaintenance.Stop()
 	defer alivenessCheck.Stop()
 	defer randomWalk.Stop()
 	defer supportCheck.Stop()
 	defer badNodesCleanup.Stop()
+	defer enrRequestCleanup.Stop()
 
 	for {
 		select {
@@ -527,6 +532,9 @@ func (s *Service) maintenanceLoop() {
 
 		case <-badNodesCleanup.C:
 			s.performBadNodesCleanup()
+
+		case <-enrRequestCleanup.C:
+			s.cleanupStaleENRRequests()
 		}
 	}
 }
@@ -689,6 +697,28 @@ func (s *Service) performBadNodesCleanup() {
 
 	if len(counts) > 0 {
 		s.config.Logger.WithField("counts", counts).Info("bad nodes statistics")
+	}
+}
+
+// cleanupStaleENRRequests removes stale ENR requests from the pending map.
+// This prevents memory leaks from hung or failed requests.
+func (s *Service) cleanupStaleENRRequests() {
+	now := time.Now()
+	staleThreshold := 60 * time.Second // Consider requests stale after 60 seconds
+	cleanedCount := 0
+
+	s.pendingENRRequestsV4.Range(func(key, value interface{}) bool {
+		if timestamp, ok := value.(time.Time); ok {
+			if now.Sub(timestamp) > staleThreshold {
+				s.pendingENRRequestsV4.Delete(key)
+				cleanedCount++
+			}
+		}
+		return true // continue iteration
+	})
+
+	if cleanedCount > 0 {
+		s.config.Logger.WithField("cleaned", cleanedCount).Debug("cleaned up stale ENR requests")
 	}
 }
 
@@ -979,12 +1009,26 @@ func (s *Service) onFindNodeV5(msg *v5protocol.FindNode, sourceNode *v5node.Node
 // Callbacks for discv4
 
 func (s *Service) onNodeSeenV4(n *v4node.Node, timestamp time.Time) {
-	// Update last seen in EL database (discv4 is EL-only)
+	// Check if node is already in table
 	if s.elTable != nil && s.elNodeDB != nil {
 		// Look up the generic node from the table
 		if genericNode := s.elTable.Get(n.ID()); genericNode != nil {
+			// Node exists, just update last seen
 			genericNode.SetLastSeen(timestamp) // This marks it dirty
 			s.elNodeDB.QueueUpdate(genericNode)
+			return
+		}
+
+		// Node doesn't exist yet
+		// For discv4, we need to request the ENR before we can filter/add the node
+		// Check if the node has an ENR already (from ENRRESPONSE)
+		if n.ENR() != nil {
+			// We have the ENR, try to add it
+			s.checkAndAddNodeV4(n)
+		} else {
+			// No ENR yet, request it
+			// The node will be added when we receive the ENRRESPONSE
+			s.requestENRV4(n)
 		}
 	}
 }
@@ -1014,6 +1058,108 @@ func (s *Service) onFindNodeV4(from *v4node.Node, target []byte, requester *net.
 	}
 
 	return v4Nodes
+}
+
+// requestENRV4 sends an ENRREQUEST to a discv4 node and tries to add it.
+// This runs in a goroutine to avoid blocking the packet handler.
+func (s *Service) requestENRV4(n *v4node.Node) {
+	if s.discv4Service == nil {
+		return
+	}
+
+	nodeID := n.ID()
+	now := time.Now()
+
+	// Check if we already have a recent pending ENR request for this node
+	if val, exists := s.pendingENRRequestsV4.Load(nodeID); exists {
+		if timestamp, ok := val.(time.Time); ok {
+			// If request is less than 30 seconds old, skip (still pending)
+			if time.Since(timestamp) < 30*time.Second {
+				return
+			}
+			// Request is stale (>30s), replace it
+		}
+	}
+
+	// Mark as pending with current timestamp
+	s.pendingENRRequestsV4.Store(nodeID, now)
+
+	// Run in goroutine to avoid blocking packet handling
+	go func() {
+		// Remove from pending when done
+		defer s.pendingENRRequestsV4.Delete(nodeID)
+
+		// IMPORTANT: Some clients (like reth) require bidirectional bonding before responding to ENRRequest.
+		// Bidirectional bonding means:
+		// 1. They ping us, we pong them (already done when we received their PING)
+		// 2. We ping them, they pong us (RequestENR will do this if not bonded)
+		//
+		// RequestENR() automatically checks bond status and will ping the node if needed,
+		// then waits for their PONG before sending the ENRRequest.
+		enrRecord, err := s.discv4Service.RequestENR(n)
+		if err != nil {
+			s.config.Logger.WithFields(logrus.Fields{
+				"nodeID": fmt.Sprintf("%x", n.IDBytes()[:8]),
+				"error":  err,
+			}).Debug("Failed to request ENR from discv4 node")
+			return
+		}
+
+		s.config.Logger.WithFields(logrus.Fields{
+			"nodeID": fmt.Sprintf("%x", n.IDBytes()[:8]),
+			"addr":   n.Addr().String(),
+			"enrSeq": enrRecord.Seq(),
+		}).Debug("Received ENR from discv4 node")
+
+		// Node now has the ENR, try to add it
+		s.checkAndAddNodeV4(n)
+	}()
+}
+
+// checkAndAddNodeV4 adds a discv4 node to the EL table after filtering.
+func (s *Service) checkAndAddNodeV4(n *v4node.Node) bool {
+	// Ensure we have an ENR for filtering
+	if n.ENR() == nil {
+		s.config.Logger.WithFields(logrus.Fields{
+			"nodeID": fmt.Sprintf("%x", n.IDBytes()[:8]),
+		}).Debug("Cannot add discv4 node without ENR")
+		return false
+	}
+
+	// discv4 nodes go to EL table
+	if s.elTable == nil {
+		return false
+	}
+
+	// Check if node already exists in table
+	if existingNode := s.elTable.Get(n.ID()); existingNode != nil {
+		s.config.Logger.WithFields(logrus.Fields{
+			"nodeID": fmt.Sprintf("%x", n.IDBytes()[:8]),
+		}).Debug("Discv4 node already in EL table, skipping add")
+		return false
+	}
+
+	// Filter the node using ENR manager (EL-only for discv4)
+	if s.enrManager != nil && !s.enrManager.FilterELNode(n.ENR()) {
+		s.config.Logger.WithFields(logrus.Fields{
+			"nodeID": fmt.Sprintf("%x", n.IDBytes()[:8]),
+		}).Debug("Discv4 node filtered out (wrong fork or not EL)")
+		return false
+	}
+
+	// Create generic node from v4 node
+	genericNode := nodes.NewFromV4(n, s.elNodeDB)
+
+	// Try to add to table
+	if s.elTable.Add(genericNode) {
+		s.config.Logger.WithFields(logrus.Fields{
+			"nodeID": fmt.Sprintf("%x", n.IDBytes()[:8]),
+			"addr":   n.Addr().String(),
+		}).Info("Added discv4 node to EL table")
+		return true
+	}
+
+	return false
 }
 
 // checkAndAddNode performs admission checks and adds node to appropriate table.

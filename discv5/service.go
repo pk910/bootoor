@@ -176,7 +176,19 @@ func New(cfg *Config, transport Transport) (*Service, error) {
 
 // packetHandler is the packet handler function registered with the transport.
 // It wraps the protocol handler's HandleIncomingPacket method.
-func (s *Service) packetHandler(data []byte, from *net.UDPAddr) bool {
+func (s *Service) packetHandler(data []byte, from *net.UDPAddr) (accepted bool) {
+	// Recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			s.config.Logger.WithFields(logrus.Fields{
+				"from":  from,
+				"panic": r,
+				"stack": fmt.Sprintf("%v", r),
+			}).Error("discv5: PANIC in packetHandler!")
+			accepted = false
+		}
+	}()
+
 	// Try to handle as discv5 packet.
 	// The handler does full validation including checking the "discv5" magic string.
 	// Note: While discv5 packets normally start with "discv5", we don't pre-filter
@@ -185,7 +197,6 @@ func (s *Service) packetHandler(data []byte, from *net.UDPAddr) bool {
 	err := s.handler.HandleIncomingPacket(data, from)
 	if err != nil {
 		// Could not handle as discv5, let other handlers try
-		s.config.Logger.WithError(err).Trace("discv5: could not handle packet")
 		return false
 	}
 

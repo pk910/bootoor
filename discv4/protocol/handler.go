@@ -188,14 +188,24 @@ func NewHandler(ctx context.Context, config HandlerConfig, transport Transport) 
 // HandlePacket processes an incoming UDP packet.
 //
 // This is called by the transport layer when a packet is received.
-func (h *Handler) HandlePacket(data []byte, from *net.UDPAddr) error {
+func (h *Handler) HandlePacket(data []byte, from *net.UDPAddr) (err error) {
+	// Recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.WithFields(logrus.Fields{
+				"from":  from,
+				"panic": r,
+			}).Error("discv4: PANIC in HandlePacket!")
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+
 	h.incrementPacketsReceived()
 
 	// Decode packet
 	packet, fromKey, hash, err := Decode(data)
 	if err != nil {
 		h.incrementInvalidPackets()
-		logrus.WithError(err).Debug("Failed to decode packet")
 		return fmt.Errorf("decode error: %w", err)
 	}
 
@@ -266,7 +276,37 @@ func (h *Handler) handlePing(fromNode *node.Node, from *net.UDPAddr, ping *Ping,
 	}
 
 	// Send PONG response
-	return h.sendPong(fromNode, from, hash)
+	if err := h.sendPong(fromNode, from, hash); err != nil {
+		return err
+	}
+
+	// Mark node as bonded: they pinged us, we ponged them.
+	// This allows THEM to query US with FINDNODE immediately.
+	fromNode.MarkPongReceived(h.config.BondExpiration)
+
+	// IMPORTANT: For bidirectional bonding (required by strict clients like reth for ENRRequest),
+	// we also need to establish that WE can reach THEM, not just that they can reach us.
+	// Send a PING back to them to establish bidirectional bond.
+	//
+	// RATE LIMITING: Only send PING back if we haven't pinged them in the last 100ms.
+	// This prevents ping-pong loops (max 10 pings/sec per node).
+	lastPingSent := fromNode.LastPingSent()
+	timeSinceLastPing := time.Since(lastPingSent)
+
+	// Only spawn goroutine if we're actually going to ping (don't create unnecessary goroutines)
+	if timeSinceLastPing > 100*time.Millisecond {
+		// Send PING back in goroutine to establish bidirectional bond
+		go func() {
+			if _, err := h.Ping(fromNode); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"node_id": fmt.Sprintf("%x", fromNode.IDBytes()[:8]),
+					"error":   err,
+				}).Trace("Failed to ping node for bidirectional bond")
+			}
+		}()
+	}
+
+	return nil
 }
 
 // handlePong processes a PONG response.
@@ -442,6 +482,19 @@ func (h *Handler) handleENRRequest(fromNode *node.Node, from *net.UDPAddr, req *
 		return ErrExpired
 	}
 
+	// IMPORTANT: Check if node is bonded (bidirectional bond required)
+	// This prevents amplification attacks and matches reth's behavior.
+	// Only respond to ENRRequest if we've established a bidirectional bond:
+	// - We sent them a PING
+	// - They sent us a PONG
+	if !fromNode.IsBonded() {
+		logrus.WithFields(logrus.Fields{
+			"from":    from.String(),
+			"node_id": fmt.Sprintf("%x", fromNode.IDBytes()[:8]),
+		}).Debug("Ignoring ENRREQUEST from unbonded node")
+		return fmt.Errorf("node not bonded")
+	}
+
 	// Call callback
 	if h.config.OnENRRequest != nil {
 		if err := h.config.OnENRRequest(fromNode); err != nil {
@@ -587,12 +640,15 @@ func (h *Handler) Findnode(n *node.Node, target []byte) ([]*node.Node, error) {
 
 // RequestENR sends an ENRREQUEST to a node.
 func (h *Handler) RequestENR(n *node.Node) (*enr.Record, error) {
-	// Check if node is bonded
-	if !n.IsBonded() {
-		// Establish bond first
-		if _, err := h.Ping(n); err != nil {
-			return nil, fmt.Errorf("failed to establish bond: %w", err)
-		}
+	// IMPORTANT: Some clients (like reth) require bidirectional bonding before responding to ENRRequest.
+	// Bidirectional bond means BOTH:
+	// 1. They ping us, we pong them (allows them to query us with FINDNODE)
+	// 2. We ping them, they pong us (allows us to query them with ENRREQUEST)
+	//
+	// Always ping before ENRRequest to ensure bidirectional bond, even if IsBonded() returns true
+	// (since IsBonded() only checks if they've pinged us, not if we've pinged them).
+	if _, err := h.Ping(n); err != nil {
+		return nil, fmt.Errorf("failed to establish bidirectional bond: %w", err)
 	}
 
 	// Build ENRREQUEST message
